@@ -348,14 +348,14 @@
       />
 
       <div class="mt-4 grid gap-2">
-        <a
-          v-for="item in headerServiceItems"
+          <a
+            v-for="item in headerServiceItems"
           :key="item.key"
-          :href="item.href"
-          target="_blank"
-          rel="noopener noreferrer"
+            :href="item.href || undefined"
+            :target="item.href ? '_blank' : undefined"
+            :rel="item.href ? 'noopener noreferrer' : undefined"
           class="shell-service-link group flex min-w-0 items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-left transition-colors hover:border-[hsl(var(--foreground)_/_0.24)] hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          @click="isServiceDialogOpen = false"
+          @click="handleServiceItemClick(item, $event)"
         >
           <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors group-hover:text-foreground">
             <Icon :icon="item.icon" class="h-4 w-4" />
@@ -791,7 +791,7 @@ const menuItems: NavigationItem[] = [
     path: '/gallery',
     label: '图片管理',
     icon: 'M22 16V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2zm-11-4 2.03 2.71L16 11l4 5H8l3-3zM2 6v14a2 2 0 0 0 2 2h14v-2H4V6H2z',
-    capability: 'admin_console',
+    capability: 'studio',
   },
   {
     path: '/proxy',
@@ -805,6 +805,12 @@ const menuItems: NavigationItem[] = [
     icon: 'M4 6h10v2H4V6zm12 0h4v2h-4V6zM4 11h6v2H4v-2zm8 0h8v2h-8v-2zM4 16h10v2H4v-2zm12 0h4v2h-4v-2z',
     capability: 'admin_console',
   },
+  {
+    path: '/users',
+    label: '用户管理',
+    icon: 'M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0zm-4 6c-4.42 0-8 2.24-8 5h16c0-2.76-3.58-5-8-5zM18 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm0 8c-1.31 0-2.5.31-3.48.85A6.02 6.02 0 0 1 17 16h5c0-2.76-1.79-5-4-5z',
+    capability: 'admin_console',
+  },
 ]
 
 const routeTitleMap: Record<string, string> = {
@@ -814,6 +820,7 @@ const routeTitleMap: Record<string, string> = {
   gallery: '图片管理',
   proxy: '代理管理',
   settings: '系统设置',
+  users: '用户管理',
   monitor: '实时监控',
   studio: '对话画图',
 }
@@ -957,21 +964,16 @@ type HeaderServiceItem = {
 const headerServiceItems: HeaderServiceItem[] = [
   {
     key: 'service-qq',
-    label: 'QQ 交流群：1005859624',
+    label: 'QQ 交流群：746749887',
+    detail: '群号 746749887',
     href: 'https://qm.qq.com/q/yegwCqJisS',
     icon: 'lucide:messages-square',
   },
   {
-    key: 'service-account',
-    label: '购买生图账号',
-    href: 'https://pay.ldxp.cn/shop/yukkcat',
-    icon: 'lucide:shopping-bag',
-  },
-  {
-    key: 'service-api',
-    label: '生图 API',
-    detail: '小量 ¥0.02/张 · 中转 ¥0.01/张 · 大量/企业 ¥0.009/张',
-    href: 'https://api.klong.lat',
+    key: 'service-seeddance-api',
+    label: 'SeedDance2.0&Gpt Image2 中转 API',
+    detail: '暂未开放',
+    href: '',
     icon: 'lucide:badge-dollar-sign',
   },
 ]
@@ -1006,7 +1008,17 @@ const routeViewLoaders: Record<string, () => Promise<unknown>> = {
   '/monitor': () => import('@/views/Monitor.vue'),
   '/proxy': () => import('@/views/Proxy.vue'),
   '/settings': () => import('@/views/Settings.vue'),
+  '/users': () => import('@/views/Users.vue'),
   '/studio': () => import('@/views/Studio.vue'),
+}
+
+function handleServiceItemClick(item: HeaderServiceItem, event: MouseEvent) {
+  if (item.href) {
+    isServiceDialogOpen.value = false
+    return
+  }
+  event.preventDefault()
+  toast.info('暂未开放')
 }
 
 function setMobileSidebarScrollLock(locked: boolean) {

@@ -36,9 +36,9 @@ class GalleryRow(BaseModel):
     expires_at: str | None
     expires_in_seconds: int | None = Field(default=None, ge=0)
     tags: list[str] = Field(default_factory=list)
-    storage: GalleryStorage
-    local: bool
-    webdav: bool
+    storage: GalleryStorage | None = None
+    local: bool | None = None
+    webdav: bool | None = None
     available: bool
     width: int | None = Field(default=None, ge=1)
     height: int | None = Field(default=None, ge=1)
@@ -70,6 +70,8 @@ class GalleryCapabilities(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     genbox_push: bool = False
+    storage_management: bool = False
+    tags: bool = False
 
 
 class GalleryPage(BaseModel):

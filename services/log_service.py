@@ -462,6 +462,39 @@ class LoggedCall:
     call_id: str = field(default_factory=lambda: uuid4().hex[:16])
     perf_timings: dict[str, int] = field(default_factory=dict)
     trace_metadata: dict[str, object] = field(default_factory=dict)
+    image_quota_reservation_id: str = ""
+
+    def reserve_image_quota(self, requested: int) -> None:
+        if str(self.identity.get("role") or "") != "user" or not self._is_image_request():
+            return
+        from services.auth_service import auth_service
+        from services.config import config
+
+        self.image_quota_reservation_id = auth_service.reserve_successful_images(
+            str(self.identity.get("id") or ""),
+            requested,
+            config.user_daily_image_limit,
+        )
+
+    def _finish_image_quota(self, status: str, urls: list[str]) -> None:
+        reservation_id = self.image_quota_reservation_id
+        if not reservation_id:
+            return
+        self.image_quota_reservation_id = ""
+        from services.auth_service import auth_service
+
+        if status == "success" and urls:
+            try:
+                auth_service.complete_successful_images(reservation_id, len(set(urls)))
+            except Exception as exc:
+                auth_service.release_successful_images(reservation_id)
+                logger.error({
+                    "event": "image_usage_persist_failed",
+                    "call_id": self.call_id,
+                    "error": str(exc),
+                })
+            return
+        auth_service.release_successful_images(reservation_id)
 
     async def run(self, handler, *args, sse: str = "openai"):
         if args and isinstance(args[0], dict):
@@ -727,8 +760,10 @@ class LoggedCall:
         if conv_id:
             detail["conversation_id"] = conv_id
         collected_urls = [*(urls or []), *_collect_urls(result)]
+        unique_urls = list(dict.fromkeys(collected_urls))
+        self._finish_image_quota(status, unique_urls)
         if collected_urls and not self.endpoint.startswith("/v1/search"):
-            detail["urls"] = list(dict.fromkeys(collected_urls))
+            detail["urls"] = unique_urls
         if self._trace_image_perf():
             image_metrics = _image_result_metrics(result)
             if image_metrics:

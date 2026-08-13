@@ -27,6 +27,13 @@
         <SettingsNumberInput :field="imageRetentionHoursField" />
       </FormField>
 
+      <FormField label="用户每日成功生图上限">
+        <template #label-extra>
+          <HelpTip text="按用户统计每天成功生成的图片数量；设置为 0 表示不限制。" />
+        </template>
+        <SettingsNumberInput :field="userDailyImageLimitField" />
+      </FormField>
+
       <FormField label="日志自动清理">
         <template #label-extra>
           <HelpTip text="自动删除多少小时前的控制台调用日志。" />
@@ -78,6 +85,7 @@ const props = defineProps<{
   fields: SettingsFields
   refreshAccountIntervalField: NumberSettingField
   imageRetentionHoursField: NumberSettingField
+  userDailyImageLimitField: NumberSettingField
   logRetentionHoursField: NumberSettingField
   imagePollTimeoutField: NumberSettingField
   imageStreamTimeoutField: NumberSettingField

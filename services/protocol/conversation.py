@@ -346,6 +346,7 @@ def save_image_bytes(
         base_url: str | None = None,
         *,
         deadline_monotonic: float | None = None,
+        owner_id: str = "",
 ) -> str:
     last_error: Exception | None = None
     for attempt in range(2):
@@ -354,6 +355,7 @@ def save_image_bytes(
                 image_data,
                 base_url,
                 deadline_monotonic=deadline_monotonic,
+                owner_id=owner_id,
             ).url
         except ImageFailureError as exc:
             if exc.failure.code == "task_interrupted":
@@ -490,6 +492,7 @@ def format_image_result(
     message: str = "",
     requested_size: str | None = None,
     deadline_monotonic: float | None = None,
+    owner_id: str = "",
 ) -> dict[str, Any]:
     data: list[dict[str, Any]] = []
     image_urls: list[str] = []
@@ -504,6 +507,7 @@ def format_image_result(
             image_bytes,
             base_url,
             deadline_monotonic=deadline_monotonic,
+            owner_id=owner_id,
         )
         if stored_url:
             image_urls.append(stored_url)
@@ -542,6 +546,7 @@ class ConversationRequest:
     trace_image_perf: bool = False
     monitor_attempt: int = 0
     deadline_monotonic: float = 0.0
+    owner_id: str = ""
 
 
 @dataclass
@@ -1623,6 +1628,7 @@ def _image_result_output_from_urls(
         int(time.time()),
         requested_size=request.size,
         deadline_monotonic=request.deadline_monotonic or None,
+        owner_id=request.owner_id,
     )
     data = formatted["data"]
     if not data:
@@ -2010,6 +2016,7 @@ def stream_codex_image_outputs(
         int(time.time()),
         requested_size=request.size,
         deadline_monotonic=request.deadline_monotonic or None,
+        owner_id=request.owner_id,
     )
     data = formatted["data"]
     if data:

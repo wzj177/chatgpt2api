@@ -94,6 +94,8 @@ export interface PublicThirdPartyAppsSettings {
 
 export interface PublicThirdPartyAppsView {
   api_base_url: string
+  user_daily_image_limit: number
+  image_retention_hours: number
   third_party_apps: PublicThirdPartyAppsSettings
 }
 

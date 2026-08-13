@@ -74,6 +74,36 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function passwordLogin(email: string, password: string) {
+    isLoading.value = true
+    try {
+      const status = await authApi.passwordLogin({ email, password })
+      const authenticated = applyStatus(status)
+      lastCheckedAt.value = Date.now()
+      return authenticated
+    } catch (error) {
+      clearIdentity()
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function register(data: Parameters<typeof authApi.register>[0]) {
+    isLoading.value = true
+    try {
+      const status = await authApi.register(data)
+      const authenticated = applyStatus(status)
+      lastCheckedAt.value = Date.now()
+      return authenticated
+    } catch (error) {
+      clearIdentity()
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   async function logout() {
     try {
       await authApi.logout()
@@ -127,6 +157,8 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     hasCapability,
     login,
+    passwordLogin,
+    register,
     logout,
     checkAuth,
     clearIdentity,

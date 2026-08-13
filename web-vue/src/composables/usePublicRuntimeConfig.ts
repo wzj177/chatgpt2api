@@ -35,6 +35,8 @@ export function usePublicRuntimeConfig() {
     normalizeBaseUrl(sharedView.value?.api_base_url || '') || fallbackBaseUrl()
   ))
   const thirdPartyApps = computed(() => sharedView.value?.third_party_apps || null)
+  const userDailyImageLimit = computed(() => sharedView.value?.user_daily_image_limit ?? 20)
+  const imageRetentionHours = computed(() => sharedView.value?.image_retention_hours ?? 24)
 
   async function loadPublicRuntimeConfig(force = false) {
     if (!force && sharedView.value && Date.now() - loadedAt < PUBLIC_RUNTIME_TTL_MS) {
@@ -76,6 +78,8 @@ export function usePublicRuntimeConfig() {
   return {
     apiBaseUrl,
     thirdPartyApps,
+    userDailyImageLimit,
+    imageRetentionHours,
     isLoading,
     loadError,
     loadPublicRuntimeConfig,

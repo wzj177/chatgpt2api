@@ -73,6 +73,8 @@ _MANAGED_TOP_LEVEL_FIELDS = (
     "genbox_push",
     "backup",
     "third_party_apps",
+    "user_daily_image_limit",
+    "protocol_markdown",
 )
 
 _SENSITIVE_PATHS = (
@@ -253,6 +255,8 @@ _FIELD_SPECS: dict[str, dict[str, Any]] = {
     "auto_remove_rate_limited_accounts": _field_metadata(False),
     "log_levels": _field_metadata([], options=("debug", "info", "warning", "error")),
     "global_system_prompt": _field_metadata(""),
+    "user_daily_image_limit": _numeric_field_metadata("user_daily_image_limit"),
+    "protocol_markdown": _field_metadata("# 用户协议\n\n请合理使用本服务。"),
     "sensitive_words": _field_metadata([]),
     "ai_review.enabled": _field_metadata(False),
     "ai_review.base_url": _field_metadata(""),
@@ -311,6 +315,8 @@ class SettingsManagementService:
             canvas = settings.third_party_apps.infinite_canvas
             return PublicThirdPartyAppsView(
                 api_base_url=settings.base_url,
+                user_daily_image_limit=settings.user_daily_image_limit,
+                image_retention_hours=settings.image_retention_hours,
                 third_party_apps=PublicThirdPartyAppsSettings(
                     infinite_canvas=PublicInfiniteCanvasSettings(
                         enabled=canvas.enabled,
@@ -489,6 +495,8 @@ class SettingsManagementService:
                 "log_retention_hours",
                 effective.get("log_retention_hours"),
             ),
+            user_daily_image_limit=normalize_integer_setting("user_daily_image_limit", effective.get("user_daily_image_limit")),
+            protocol_markdown=_text(effective.get("protocol_markdown"), "# 用户协议\n\n请合理使用本服务。"),
             image_poll_timeout_secs=normalize_integer_setting(
                 "image_poll_timeout_secs",
                 effective.get("image_poll_timeout_secs"),

@@ -18,6 +18,7 @@ from services.bounded_task_runner import BoundedTaskRunner, TaskReservation, env
 from services.config import DATA_DIR, config
 from services.content_filter import request_text
 from services.genbox_push_service import auto_push_gallery_urls
+from services.auth_service import auth_service
 from services.image_failure import (
     ImageFailureError,
     ImageGenerationError,
@@ -263,6 +264,7 @@ class ImageTaskService:
         self._lock = threading.RLock()
         self._tasks: dict[str, dict[str, Any]] = {}
         self._pending_submissions: dict[str, threading.Event] = {}
+        self._quota_reservations: dict[str, str] = {}
         self._executing_task_keys: set[str] = set()
         self._shutdown_lock = threading.Lock()
         self._batching_task_cancellations = threading.Event()
@@ -490,7 +492,17 @@ class ImageTaskService:
             pending.wait()
 
         queued_payload: dict[str, Any] | None = None
+        task_committed = False
         try:
+            if str(identity.get("role") or "") == "user":
+                requested = _image_count(payload.get("n"))
+                quota_reservation_id = auth_service.reserve_successful_images(
+                    owner,
+                    requested,
+                    config.user_daily_image_limit,
+                )
+                with self._lock:
+                    self._quota_reservations[key] = quota_reservation_id
             reservation = reservation or self.reserve_submission()
             queued_payload = self._prepare_queued_payload(mode, payload)
             task = {
@@ -522,6 +534,7 @@ class ImageTaskService:
                 submitted_wall,
                 submitted_perf,
             )
+            task_committed = True
             with self._lock:
                 return image_task_row(self._tasks.get(key, task))
         except Exception:
@@ -535,6 +548,8 @@ class ImageTaskService:
                 completed = self._pending_submissions.pop(key, None)
                 if completed is not None:
                     completed.set()
+            if not task_committed:
+                self._release_quota_reservation(key)
 
     def _prepare_queued_payload(self, mode: str, payload: dict[str, Any]) -> dict[str, Any]:
         queued = dict(payload)
@@ -579,6 +594,27 @@ class ImageTaskService:
         spool_dir = _clean(payload.get("_spool_dir"))
         if spool_dir:
             shutil.rmtree(spool_dir, ignore_errors=True)
+
+    def _release_quota_reservation(self, key: str) -> None:
+        with self._lock:
+            reservation_id = self._quota_reservations.pop(key, None)
+        if reservation_id:
+            auth_service.release_successful_images(reservation_id)
+
+    def _complete_quota_reservation(self, key: str, count: int) -> None:
+        with self._lock:
+            reservation_id = self._quota_reservations.pop(key, None)
+        if not reservation_id:
+            return
+        try:
+            auth_service.complete_successful_images(reservation_id, count)
+        except Exception as exc:
+            auth_service.release_successful_images(reservation_id)
+            logger.error({
+                "event": "image_usage_persist_failed",
+                "task_key": key,
+                "error": str(exc),
+            })
 
     def _commit_new_task(
         self,
@@ -640,6 +676,7 @@ class ImageTaskService:
             )
             callback(*next_args)
         except Exception as exc:
+            self._release_quota_reservation(key)
             public_error, _, error_details = _normalize_task_failure(exc, "image task failed")
             try:
                 self._update_task(
@@ -691,10 +728,12 @@ class ImageTaskService:
         return True
 
     def _mark_task_interrupted_safely(self, key: str) -> None:
+        interrupted = False
         try:
             with self._lock:
                 if not self._mark_task_interrupted_locked(key):
                     return
+                interrupted = True
                 if self._batching_task_cancellations.is_set():
                     self._batched_task_cancellations_dirty = True
                     return
@@ -705,6 +744,9 @@ class ImageTaskService:
                 "task_key": key,
                 "error": str(exc),
             })
+        finally:
+            if interrupted:
+                self._release_quota_reservation(key)
 
     def _run_task(
         self,
@@ -749,6 +791,7 @@ class ImageTaskService:
             "_image_result_callback": image_result_callback,
             "_call_id": call_id,
             "_trace_image_perf": True,
+            "_owner_id": _owner_id(identity),
         }
         handler_started = time.perf_counter()
         realtime_monitor_service.stage(
@@ -781,6 +824,7 @@ class ImageTaskService:
                 raise error
             usage = result.get("usage")
             duration_ms = int((time.time() - started) * 1000)
+            self._complete_quota_reservation(key, len(data))
             self._update_task(
                 key,
                 status=TASK_STATUS_SUCCESS,
@@ -812,6 +856,7 @@ class ImageTaskService:
                 extra={"image_attempts": image_attempts} if image_attempts else None,
             )
         except Exception as exc:
+            self._release_quota_reservation(key)
             perf_timings["handler_exec_ms"] = int((time.perf_counter() - handler_started) * 1000)
             public_error, raw_error, error_details = _normalize_task_failure(exc, "image task failed")
             account_email = _clean(getattr(exc, "account_email", ""))
@@ -1042,6 +1087,12 @@ class ImageTaskService:
             submitted_wall = time.time()
             submitted_perf = time.perf_counter()
             reservation = self.reserve_submission()
+            if str(identity.get("role") or "") == "user":
+                self._quota_reservations[key] = auth_service.reserve_successful_images(
+                    owner,
+                    int(task.get("n") or 1),
+                    config.user_daily_image_limit,
+                )
             previous_task = deepcopy(task)
             queued_task = deepcopy(task)
             queued_task["status"] = TASK_STATUS_QUEUED
@@ -1068,6 +1119,9 @@ class ImageTaskService:
                     submitted_wall,
                     submitted_perf,
                 )
+            except Exception:
+                self._release_quota_reservation(key)
+                raise
             finally:
                 reservation.rollback()
         with self._lock:
@@ -1125,8 +1179,10 @@ class ImageTaskService:
                 base_url,
                 int(time.time()),
                 requested_size=size,
+                owner_id=_owner_id(identity),
             )
             data = formatted["data"]
+            self._complete_quota_reservation(key, len(data))
             self._update_task(
                 key,
                 status=TASK_STATUS_SUCCESS,
@@ -1151,6 +1207,7 @@ class ImageTaskService:
                 perf={"handler_queue_ms": handler_queue_ms},
             )
         except Exception as exc:
+            self._release_quota_reservation(key)
             public_error, raw_error, error_details = _normalize_task_failure(exc, "resume poll failed")
             if error_details.get("error_code") == "image_poll_timeout" and conversation_id:
                 error_details["can_resume_poll"] = True
@@ -1198,9 +1255,11 @@ class ImageTaskService:
                 self.task_runner.shutdown_cancel_pending_and_wait()
             else:
                 self.task_runner.shutdown(wait=False)
+            interrupted_keys: list[str] = []
             with self._lock:
                 for key in tuple(self._tasks):
                     if self._mark_task_interrupted_locked(key):
+                        interrupted_keys.append(key)
                         self._batched_task_cancellations_dirty = True
                 if self._batched_task_cancellations_dirty:
                     try:
@@ -1210,6 +1269,8 @@ class ImageTaskService:
                             "event": "image_task_cancellation_persist_failed",
                             "error": str(exc),
                         })
+            for key in interrupted_keys:
+                self._release_quota_reservation(key)
         finally:
             with self._lock:
                 self._batching_task_cancellations.clear()

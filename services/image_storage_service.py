@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import io
 import time
 from contextlib import ExitStack, contextmanager
@@ -26,6 +27,8 @@ IMAGE_INDEX_LOCK = Lock()
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 IMAGE_SYNC_MERGE_BATCH_SIZE = 64
 IMAGE_MUTATION_BATCH_SIZE = 16
+IMAGE_URL_TTL_SECONDS = 3600
+IMAGE_URL_SECRET_FILE = DATA_DIR / ".image-url-secret"
 
 
 class ImageStorageError(RuntimeError):
@@ -63,6 +66,32 @@ class DeleteMutationResult:
 
 def _clean(value: object) -> str:
     return str(value or "").strip()
+
+
+def _image_url_secret() -> bytes:
+    try:
+        value = IMAGE_URL_SECRET_FILE.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        value = uuid4().hex + uuid4().hex
+        IMAGE_URL_SECRET_FILE.parent.mkdir(parents=True, exist_ok=True)
+        IMAGE_URL_SECRET_FILE.write_text(value, encoding="utf-8")
+    return value.encode("utf-8")
+
+
+def signed_image_query(rel: str, owner_id: str, *, expires_at: int | None = None) -> str:
+    safe_rel = normalize_image_relative_path(rel)
+    expires = int(expires_at or (time.time() + IMAGE_URL_TTL_SECONDS))
+    owner = _clean(owner_id) or "anonymous"
+    payload = f"{safe_rel}\n{owner}\n{expires}".encode("utf-8")
+    signature = hmac.new(_image_url_secret(), payload, hashlib.sha256).hexdigest()
+    return f"owner={quote(owner)}&expires={expires}&signature={signature}"
+
+
+def verify_image_signature(rel: str, owner_id: str, expires_at: int, signature: str) -> bool:
+    if expires_at < int(time.time()):
+        return False
+    expected = signed_image_query(rel, owner_id, expires_at=expires_at).rsplit("signature=", 1)[1]
+    return hmac.compare_digest(expected, _clean(signature))
 
 
 def _raise_if_save_deadline_elapsed(deadline_monotonic: float | None) -> None:
@@ -395,15 +424,16 @@ class ImageStorageService:
             **({"width": dimensions[0], "height": dimensions[1]} if dimensions else {}),
         }
 
-    def _public_url(self, rel: str, base_url: str | None = None) -> str:
+    def _public_url(self, rel: str, base_url: str | None = None, owner_id: str = "") -> str:
         settings = self.settings()
         public_base_url = _clean(settings.get("public_base_url"))
         if public_base_url:
             return f"{public_base_url.rstrip('/')}/{normalize_image_relative_path(rel)}"
-        return (
+        url = (
             f"{(base_url or config.base_url).rstrip('/')}/images/"
             f"{normalize_image_relative_path(rel)}"
         )
+        return f"{url}?{signed_image_query(rel, owner_id)}"
 
     def make_relative_path(self, image_data: bytes) -> str:
         file_hash = hashlib.md5(image_data).hexdigest()
@@ -418,6 +448,7 @@ class ImageStorageService:
         base_url: str | None = None,
         *,
         deadline_monotonic: float | None = None,
+        owner_id: str = "",
     ) -> StoredImage:
         _raise_if_save_deadline_elapsed(deadline_monotonic)
         rel = self.make_relative_path(image_data)
@@ -459,6 +490,7 @@ class ImageStorageService:
                 "webdav": stored_webdav,
                 "remote_url": remote_url,
                 "generation": self._new_generation(),
+                "owner_id": _clean(owner_id) or "anonymous",
             }
             if dimensions:
                 item["width"], item["height"] = dimensions
@@ -470,7 +502,16 @@ class ImageStorageService:
                 if rel in pending:
                     pending.pop(rel, None)
                     self._save_remote_delete_pending(pending)
-        return StoredImage(rel=rel, url=self._public_url(rel, base_url), storage=str(item["storage"]), size=len(image_data))
+        return StoredImage(rel=rel, url=self._public_url(rel, base_url, owner_id), storage=str(item["storage"]), size=len(image_data))
+
+    def owner_id(self, rel: str) -> str:
+        safe_rel = normalize_image_relative_path(rel)
+        with self._index_guard():
+            item = self._load_clean_index().get(safe_rel)
+        return _clean(item.get("owner_id")) if isinstance(item, dict) else ""
+
+    def is_owned_by(self, rel: str, owner_id: str) -> bool:
+        return bool(_clean(owner_id)) and self.owner_id(rel) == _clean(owner_id)
 
     def get_bytes(self, rel: str) -> bytes:
         safe_rel = normalize_image_relative_path(rel)

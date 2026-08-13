@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 from fastapi import APIRouter, Header, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
@@ -18,7 +19,7 @@ from api.gallery_contract import (
     GalleryPage,
 )
 from api.monitor_contract import MonitorRecordDetailView, RealtimeMonitorView
-from contracts.auth import AuthView
+from contracts.auth import AuthView, PasswordLoginRequest, PublicProtocolView, RegisterRequest
 from contracts.models import ModelCatalogView
 from contracts.proxy import (
     ProxyDefaultsMutation,
@@ -41,6 +42,7 @@ from contracts.updates import UpdateStatusView, UpdateTaskView
 from api.support import require_admin, require_identity, resolve_image_base_url
 from services.account_service import account_service
 from services.auth_view import build_auth_view
+from services.auth_service import auth_service
 from services.backup_service import BackupError, backup_service
 from services.config import config
 from services.gallery_view import (
@@ -61,7 +63,7 @@ from services.image_service import (
     storage_stats,
 )
 from services.dashboard_view import build_dashboard_view
-from services.image_storage_service import ImageStorageError, image_storage_service
+from services.image_storage_service import ImageStorageError, image_storage_service, verify_image_signature
 from services.image_tags_service import set_tags
 from services.log_service import log_service
 from services.model_catalog_service import get_model_catalog
@@ -80,6 +82,7 @@ from services.settings_management_service import (
 )
 from services.update_status_service import update_status_service
 from services.update_service import UpdateInstallError, update_service
+from utils.timezone import beijing_now
 
 
 class ProxyTestRequest(BaseModel):
@@ -125,8 +128,30 @@ class AccountCleanupRequest(BaseModel):
     auto_remove_rate_limited_accounts: bool | None = None
 
 
+def _is_beijing_today(value: object) -> bool:
+    raw = str(value or "").strip()
+    if not raw:
+        return False
+    today = beijing_now().date()
+    try:
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return raw.startswith(today.isoformat())
+    if parsed.tzinfo is None:
+        return parsed.date() == today
+    return parsed.astimezone(beijing_now().tzinfo).date() == today
+
+
 def _clean_text(value: object) -> str:
     return str(value or "").strip()
+
+
+def _require_image_owner(identity: dict[str, object], paths: list[str]) -> None:
+    if identity.get("role") == "admin":
+        return
+    owner_id = _clean_text(identity.get("id"))
+    if not paths or any(not image_storage_service.is_owned_by(path, owner_id) for path in paths):
+        raise HTTPException(status_code=404, detail={"error": "图片不存在"})
 
 
 def _settings_write_error_message(exc: OSError) -> str:
@@ -176,9 +201,40 @@ def create_router(app_version: str) -> APIRouter:
     router = APIRouter()
 
     @router.post("/auth/login", response_model=AuthView)
-    async def login(authorization: str | None = Header(default=None)):
-        identity = require_identity(authorization)
-        return build_auth_view(app_version, identity)
+    async def login(body: PasswordLoginRequest | None = None, authorization: str | None = Header(default=None)):
+        identity = None
+        access_token = None
+        if body is not None and body.email:
+            result = await run_in_threadpool(auth_service.authenticate_password, body.email, body.password)
+            if result is None:
+                raise HTTPException(status_code=401, detail={"error": "邮箱或密码错误"})
+            identity, access_token = result
+        else:
+            identity = require_identity(authorization)
+        view = build_auth_view(app_version, identity)
+        return view.model_copy(update={"access_token": access_token})
+
+    @router.post("/auth/register", response_model=AuthView)
+    async def register(body: RegisterRequest):
+        if body.password != body.password_confirmation:
+            raise HTTPException(status_code=400, detail={"error": "两次密码输入不一致"})
+        try:
+            identity, access_token = await run_in_threadpool(
+                auth_service.register,
+                email=body.email,
+                password=body.password,
+                username=body.username,
+                phone=body.phone,
+                terms_accepted=body.accepted_terms,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+        return build_auth_view(app_version, identity).model_copy(update={"access_token": access_token})
+
+    @router.get("/auth/protocol", response_model=PublicProtocolView)
+    async def public_protocol():
+        view = await run_in_threadpool(settings_management_service.view)
+        return {"markdown": view.settings.protocol_markdown, "revision": view.revision}
 
     @router.get("/auth/status", response_model=AuthView)
     async def auth_status(authorization: str | None = Header(default=None)):
@@ -274,7 +330,7 @@ def create_router(app_version: str) -> APIRouter:
         search: str = Query(default=""),
         authorization: str | None = Header(default=None),
     ):
-        require_admin(authorization)
+        identity = require_identity(authorization)
         return await run_in_threadpool(
             list_images,
             resolve_image_base_url(request),
@@ -285,7 +341,21 @@ def create_router(app_version: str) -> APIRouter:
             media_type=media_type,
             tag=tag.strip(),
             search=search.strip(),
+            owner_id="" if identity.get("role") == "admin" else str(identity.get("id") or ""),
+            admin=identity.get("role") == "admin",
         )
+
+    @router.get("/api/auth/users/stats")
+    async def user_stats(authorization: str | None = Header(default=None)):
+        require_admin(authorization)
+        items = await run_in_threadpool(auth_service.list_keys, role="user")
+        return {
+            "total_registered": len(items),
+            "active_today": sum(1 for item in items if _is_beijing_today(item.get("last_used_at"))),
+            "total_usage": sum(int(item.get("usage_count") or 0) for item in items),
+            "images_today": sum(int(item.get("daily_image_count") or 0) for item in items),
+            "daily_image_limit": config.user_daily_image_limit,
+        }
 
     @router.post("/api/images/retention-cleanup", response_model=GalleryCleanupResult)
     async def cleanup_expired_images_endpoint(authorization: str | None = Header(default=None)):
@@ -294,21 +364,30 @@ def create_router(app_version: str) -> APIRouter:
         return gallery_cleanup_result(result)
 
     @router.get("/images/{image_path:path}", include_in_schema=False)
-    async def get_image(image_path: str):
+    async def get_image(image_path: str, owner: str = "", expires: int = 0, signature: str = ""):
+        if not verify_image_signature(image_path, owner, expires, signature) or not image_storage_service.is_owned_by(image_path, owner):
+            raise HTTPException(status_code=404, detail="image not found")
         return get_image_response(image_path)
 
     @router.get("/image-thumbnails/{image_path:path}", include_in_schema=False)
-    async def get_image_thumbnail(image_path: str):
+    async def get_image_thumbnail(image_path: str, owner: str = "", expires: int = 0, signature: str = ""):
+        if not verify_image_signature(image_path, owner, expires, signature) or not image_storage_service.is_owned_by(image_path, owner):
+            raise HTTPException(status_code=404, detail="image not found")
         return get_thumbnail_response(image_path)
 
     @router.post("/api/images/delete")
     async def delete_images_endpoint(body: ImageDeleteRequest, authorization: str | None = Header(default=None)):
-        require_admin(authorization)
+        identity = require_identity(authorization)
+        targets = body.paths if not body.all_matching else []
+        if body.all_matching and identity.get("role") != "admin":
+            raise HTTPException(status_code=403, detail={"error": "普通用户不能执行全局删除"})
+        _require_image_owner(identity, targets)
         return delete_images(body.paths, start_date=body.start_date.strip(), end_date=body.end_date.strip(), all_matching=body.all_matching)
 
     @router.post("/api/images/download")
     async def download_images_endpoint(body: ImageDownloadRequest, authorization: str | None = Header(default=None)):
-        require_admin(authorization)
+        identity = require_identity(authorization)
+        _require_image_owner(identity, body.paths)
         buf = download_images_zip(body.paths)
         return StreamingResponse(
             buf,
@@ -318,7 +397,8 @@ def create_router(app_version: str) -> APIRouter:
 
     @router.get("/api/images/download/{image_path:path}")
     async def download_single_image_endpoint(image_path: str, authorization: str | None = Header(default=None)):
-        require_admin(authorization)
+        identity = require_identity(authorization)
+        _require_image_owner(identity, [image_path])
         return get_image_download_response(image_path)
 
     @router.post("/api/images/genbox-push", response_model=GalleryGenBoxPushResult)
@@ -326,7 +406,10 @@ def create_router(app_version: str) -> APIRouter:
         body: GalleryGenBoxPushRequest,
         authorization: str | None = Header(default=None),
     ):
-        require_admin(authorization)
+        identity = require_identity(authorization)
+        _require_image_owner(identity, [body.path])
+        if identity.get("role") != "admin":
+            raise HTTPException(status_code=403, detail={"error": "普通用户不能推送到 GenBox"})
         try:
             return await run_in_threadpool(push_gallery_image, body.path)
         except GenBoxPushError as exc:
@@ -587,7 +670,10 @@ def create_router(app_version: str) -> APIRouter:
 
     @router.post("/api/images/tags")
     async def update_image_tags(body: ImageTagsRequest, authorization: str | None = Header(default=None)):
-        require_admin(authorization)
+        identity = require_identity(authorization)
+        _require_image_owner(identity, [body.path])
+        if identity.get("role") != "admin":
+            raise HTTPException(status_code=403, detail={"error": "普通用户不能编辑图片标签"})
         rel = body.path.strip().lstrip("/")
         if not rel:
             raise HTTPException(status_code=400, detail={"error": "path is required"})

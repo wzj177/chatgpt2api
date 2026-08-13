@@ -1,6 +1,6 @@
 import { onDeactivated, onScopeDispose, ref } from 'vue'
 
-import { userKeysApi, type UserKey } from '@/api/userKeys'
+import { userKeysApi, type UserKey, type UserStats } from '@/api/userKeys'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import type { usePageRuntime } from '@/composables/usePageRuntime'
 import { usePageQuery } from '@/composables/usePageQuery'
@@ -25,6 +25,7 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
   const userKeys = ref<UserKey[]>([])
   const userKeysLoaded = ref(false)
   const userKeysLoading = ref(false)
+  const userStats = ref<UserStats | null>(null)
   const userKeyBusy = ref('')
   const userKeyModal = ref<'create' | 'edit' | ''>('')
   const editingUserKey = ref<UserKey | null>(null)
@@ -108,14 +109,19 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
 
   async function loadUserKeys() {
     await userKeysQuery.run(
-      () => userKeysApi.list(),
+      async () => {
+        const [keys, stats] = await Promise.all([userKeysApi.list(), userKeysApi.stats()])
+        return { keys, stats }
+      },
       {
         apply: (response) => {
-          userKeys.value = Array.isArray(response.items) ? response.items : []
+          userKeys.value = Array.isArray(response.keys.items) ? response.keys.items : []
+          userStats.value = response.stats
           userKeysLoaded.value = true
         },
         onError: (message) => {
           userKeys.value = []
+          userStats.value = null
           toast.error(message)
         },
       },
@@ -211,6 +217,7 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
 
   return {
     userKeys,
+    userStats,
     userKeysLoaded,
     userKeysLoading,
     userKeyBusy,

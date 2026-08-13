@@ -19,12 +19,6 @@
       <ConsoleSegmentedTabs v-model="activeSettingsTab" :options="settingsTabs" aria-label="设置分组" />
 
       <div v-if="activeSettingsTab === 'basic'" class="space-y-4">
-        <SurfaceBox density="compact">
-          <p class="text-xs leading-5 text-muted-foreground">
-            管理员登录密钥继续从部署配置读取，不在此页面展示；如需分发给其他人，请到“用户密钥”创建普通用户密钥。
-          </p>
-        </SurfaceBox>
-
         <div class="grid gap-4 xl:grid-cols-3">
           <div class="space-y-4 xl:col-span-2">
             <SettingsBasicConfigPanel
@@ -32,6 +26,7 @@
               :fields="settingsFields"
               :refresh-account-interval-field="refreshAccountIntervalField"
               :image-retention-hours-field="imageRetentionHoursField"
+              :user-daily-image-limit-field="userDailyImageLimitField"
               :log-retention-hours-field="logRetentionHoursField"
               :image-poll-timeout-field="imagePollTimeoutField"
               :image-stream-timeout-field="imageStreamTimeoutField"
@@ -40,6 +35,26 @@
             />
 
             <SettingsDashboardPreferencesPanel />
+
+            <FormSection title="用户协议">
+              <FormField label="协议 Markdown">
+                <template #label-extra>
+                  <HelpTip text="登录和注册页面读取此内容；保存后立即对新会话生效。" />
+                </template>
+                <div class="grid min-w-0 gap-3 lg:grid-cols-2">
+                  <textarea
+                    v-model="localSettings.protocol_markdown"
+                    rows="14"
+                    class="ui-textarea-sm min-h-72 resize-y font-mono"
+                    :disabled="fieldReadOnly('protocol_markdown')"
+                    placeholder="# 用户协议"
+                  ></textarea>
+                  <div class="min-h-72 overflow-auto rounded-md border border-border bg-background p-4">
+                    <StudioMarkdownContent :content="localSettings.protocol_markdown" />
+                  </div>
+                </div>
+              </FormField>
+            </FormSection>
 
             <FormSection title="全局附加指令">
               <FormField label="全局系统提示词">
@@ -117,20 +132,6 @@
         :genbox-timeout-seconds-field="genboxTimeoutSecondsField"
       />
 
-      <SettingsUserKeysPanel
-        v-else-if="activeSettingsTab === 'keys'"
-        :user-keys="userKeys"
-        :user-keys-loading="userKeysLoading"
-        :user-key-busy="userKeyBusy"
-        :new-user-key="newUserKey"
-        @load="loadUserKeys"
-        @create="openUserKeyCreateModal"
-        @copy="copyUserKey"
-        @edit="openUserKeyEditModal"
-        @toggle="toggleUserKey"
-        @delete="deleteUserKey"
-      />
-
       <SettingsExternalSourcesPanel
         v-else-if="activeSettingsTab === 'cpa' || activeSettingsTab === 'sub2api'"
         :active-tab="activeSettingsTab"
@@ -173,16 +174,6 @@
         </Button>
       </StateBlock>
     </PagePanel>
-
-    <SettingsUserKeyModals
-      :modal="userKeyModal"
-      :form="userKeyForm"
-      :editing-user-key="editingUserKey"
-      :busy="userKeyBusy"
-      @close="closeUserKeyModal"
-      @create="createUserKey"
-      @update="updateUserKey"
-    />
 
     <SettingsExternalSourceModals
       :modal="externalSourceModal"
@@ -300,7 +291,6 @@ import AccountOperationDrawer from '@/views/accounts/AccountOperationDrawer.vue'
 import PageLoadingState from '@/components/ai/PageLoadingState.vue'
 import PagePanel from '@/components/ai/PagePanel.vue'
 import StateBlock from '@/components/ai/StateBlock.vue'
-import SurfaceBox from '@/components/ai/SurfaceBox.vue'
 import {
   backupStatusText as buildBackupStatusText,
   settingsFieldReadOnly,
@@ -315,15 +305,13 @@ import SettingsExternalSourceModals from '@/views/settings/SettingsExternalSourc
 import SettingsExternalSourcesPanel from '@/views/settings/SettingsExternalSourcesPanel.vue'
 import SettingsIntegrationsPanel from '@/views/settings/SettingsIntegrationsPanel.vue'
 import SettingsPromptSourcesPanel from '@/views/settings/SettingsPromptSourcesPanel.vue'
-import SettingsUserKeyModals from '@/views/settings/SettingsUserKeyModals.vue'
 import SettingsStorageReviewPanel from '@/views/settings/SettingsStorageReviewPanel.vue'
-import SettingsUserKeysPanel from '@/views/settings/SettingsUserKeysPanel.vue'
+import StudioMarkdownContent from '@/components/studio/StudioMarkdownContent.vue'
 import { useSettingsBackupRuntime } from '@/views/settings/settingsBackupRuntime'
 import { useSettingsConfigRuntime } from '@/views/settings/settingsConfigRuntime'
 import { useSettingsExternalSourcesRuntime } from '@/views/settings/settingsExternalSourcesRuntime'
 import { useSettingsImageStorageRuntime } from '@/views/settings/settingsImageStorageRuntime'
 import { useSettingsTabRuntime } from '@/views/settings/settingsTabRuntime'
-import { useSettingsUserKeysRuntime } from '@/views/settings/settingsUserKeysRuntime'
 import { useAccountBulkProgressRuntime } from '@/views/accounts/accountBulkProgressRuntime'
 import { useRemoteAccountImportTrackingRuntime } from '@/views/accounts/remoteAccountImportTrackingRuntime'
 import { useNumberSettingField } from '@/views/settings/useNumberSettingField'
@@ -335,7 +323,6 @@ const RemoteAccountImportPanel = defineAsyncComponent(() => import('@/components
 const pageRuntime = usePageRuntime('settings')
 
 const SETTINGS_RELOAD_REQUEST_KEY = 'settings:reload'
-const USER_KEYS_REQUEST_KEY = 'settings:user-keys'
 const BACKUPS_REQUEST_KEY = 'settings:backups'
 const CPA_POOLS_REQUEST_KEY = 'settings:cpa-pools'
 const SUB2API_SERVERS_REQUEST_KEY = 'settings:sub2api-servers'
@@ -452,28 +439,6 @@ pageRuntime.onShow(() => {
 pageRuntime.onDeactivate(remoteImportTracking.stop)
 pageRuntime.onHide(remoteImportTracking.stop)
 
-const userKeysRuntime = useSettingsUserKeysRuntime({
-  runtime: pageRuntime,
-  requestKey: USER_KEYS_REQUEST_KEY,
-})
-const userKeys = userKeysRuntime.userKeys
-const userKeysLoaded = userKeysRuntime.userKeysLoaded
-const userKeysLoading = userKeysRuntime.userKeysLoading
-const userKeyBusy = userKeysRuntime.userKeyBusy
-const userKeyModal = userKeysRuntime.userKeyModal
-const editingUserKey = userKeysRuntime.editingUserKey
-const newUserKey = userKeysRuntime.newUserKey
-const userKeyForm = userKeysRuntime.userKeyForm
-const copyUserKey = userKeysRuntime.copyUserKey
-const openUserKeyCreateModal = userKeysRuntime.openUserKeyCreateModal
-const openUserKeyEditModal = userKeysRuntime.openUserKeyEditModal
-const closeUserKeyModal = userKeysRuntime.closeUserKeyModal
-const loadUserKeys = userKeysRuntime.loadUserKeys
-const createUserKey = userKeysRuntime.createUserKey
-const updateUserKey = userKeysRuntime.updateUserKey
-const toggleUserKey = userKeysRuntime.toggleUserKey
-const deleteUserKey = userKeysRuntime.deleteUserKey
-
 const sensitiveWordsText = computed({
   get: () => (localSettings.value?.sensitive_words || []).join('\n'),
   set: (value: string) => {
@@ -503,6 +468,14 @@ const imageRetentionHoursField = useNumberSettingField(
     localSettings.value.image_retention_hours = value
   },
   { integer: true, metadata: () => fieldMetadata('image_retention_hours') },
+)
+const userDailyImageLimitField = useNumberSettingField(
+  () => localSettings.value?.user_daily_image_limit,
+  (value) => {
+    if (!localSettings.value) return
+    localSettings.value.user_daily_image_limit = value
+  },
+  { integer: true, metadata: () => fieldMetadata('user_daily_image_limit') },
 )
 const logRetentionHoursField = useNumberSettingField(
   () => localSettings.value?.log_retention_hours,
@@ -597,6 +570,7 @@ const genboxTimeoutSecondsField = useNumberSettingField(
 
 const numberSettingFields = [
   imageRetentionHoursField,
+  userDailyImageLimitField,
   logRetentionHoursField,
   refreshAccountIntervalField,
   imagePollTimeoutField,
@@ -634,11 +608,6 @@ useSettingsTabRuntime({
   reloadSettings,
   tabLoaders: [
     {
-      tabs: ['keys'],
-      loaded: userKeysLoaded,
-      load: loadUserKeys,
-    },
-    {
       tabs: ['backup'],
       loaded: backupsLoaded,
       load: loadBackups,
@@ -651,7 +620,6 @@ useSettingsTabRuntime({
   ],
   invalidators: [
     settingsConfigRuntime.invalidate,
-    userKeysRuntime.invalidate,
     backupRuntime.invalidate,
     externalSourcesRuntime.invalidate,
   ],
@@ -663,8 +631,6 @@ useSettingsTabRuntime({
     backupBusy.value ||
     savingExternalSource.value ||
     testingExternalSource.value ||
-    userKeyBusy.value ||
-    userKeyModal.value ||
     externalSourceModal.value ||
     remoteImportModal.value ||
     remoteImportBusy.value,

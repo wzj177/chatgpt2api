@@ -30,10 +30,10 @@
       </div>
 
       <div class="media-overlay">
-        <button class="overlay-btn" title="复制链接" @click.stop="handleCopy">
+        <button v-if="showCopyAction" class="overlay-btn" title="复制链接" @click.stop="handleCopy">
           <Icon :icon="copied ? 'lucide:check' : 'lucide:copy'" />
         </button>
-        <button class="overlay-btn" title="编辑标签" @click.stop="handleEditTags">
+        <button v-if="showTagAction" class="overlay-btn" title="编辑标签" @click.stop="handleEditTags">
           <Icon icon="lucide:tag" />
         </button>
         <button class="overlay-btn" title="下载" @click.stop="handleDownload">
@@ -108,6 +108,8 @@ const props = defineProps<{
   genboxPushEnabled: boolean
   genboxBusy: boolean
   genboxStatusLabel: string
+  showCopyAction: boolean
+  showTagAction: boolean
 }>()
 
 const emit = defineEmits<{

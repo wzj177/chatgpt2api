@@ -169,6 +169,8 @@ class PublicThirdPartyAppsSettings(_StrictModel):
 class PublicThirdPartyAppsView(_StrictModel):
     api_base_url: str = ""
     third_party_apps: PublicThirdPartyAppsSettings = Field(default_factory=PublicThirdPartyAppsSettings)
+    user_daily_image_limit: int = Field(default=20, ge=0)
+    image_retention_hours: int = Field(default=24, ge=1)
 
 
 class ProxyRuntimePatch(_StrictModel):
@@ -205,6 +207,8 @@ class _SettingsEditableFields(_StrictModel):
     genbox_push: GenBoxPushPatch = Field(default_factory=GenBoxPushPatch)
     backup: BackupPatch = Field(default_factory=BackupPatch)
     third_party_apps: ThirdPartyAppsSettings = Field(default_factory=ThirdPartyAppsSettings)
+    user_daily_image_limit: int = Field(default=20, ge=0, le=10000)
+    protocol_markdown: str = "# 用户协议\n\n请合理使用本服务。"
 
     @field_validator("log_levels")
     @classmethod

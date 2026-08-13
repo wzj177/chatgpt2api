@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import re
 import secrets
 import uuid
 from datetime import datetime, timezone
@@ -15,6 +16,7 @@ from services.storage.base import (
     StorageMutation,
     StorageRevisionConflictError,
 )
+from utils.timezone import beijing_now
 
 AuthRole = Literal["admin", "user"]
 _CAS_ATTEMPTS = 4
@@ -22,8 +24,16 @@ _AUTH_SNAPSHOT_REFRESH_INTERVAL_SECONDS = 5.0
 _AUTH_SNAPSHOT_MAX_STALE_SECONDS = 30.0
 
 
+class ImageQuotaExceededError(ValueError):
+    pass
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _today_iso() -> str:
+    return beijing_now().date().isoformat()
 
 
 def _hash_key(value: str) -> str:
@@ -38,6 +48,7 @@ class AuthService:
         self._items: list[dict[str, object]] = []
         self._revision: str | None = None
         self._last_used_flush_at: dict[str, datetime] = {}
+        self._image_quota_reservations: dict[str, tuple[str, int]] = {}
         self._last_snapshot_refresh_attempt_at = 0.0
         self._last_snapshot_refresh_success_at = 0.0
         self._reload_locked(suppress_errors=True)
@@ -73,6 +84,13 @@ class AuthService:
             "enabled": bool(raw.get("enabled", True)),
             "created_at": created_at,
             "last_used_at": last_used_at,
+            "email": self._clean(raw.get("email")).lower() or None,
+            "phone": self._clean(raw.get("phone")) or None,
+            "password_hash": self._clean(raw.get("password_hash")) or None,
+            "terms_accepted_at": self._clean(raw.get("terms_accepted_at")) or None,
+            "usage_count": max(0, int(raw.get("usage_count") or 0)),
+            "daily_image_date": self._clean(raw.get("daily_image_date")) or None,
+            "daily_image_count": max(0, int(raw.get("daily_image_count") or 0)),
         }
 
     def _load_snapshot(self) -> tuple[list[dict[str, object]], str]:
@@ -189,6 +207,11 @@ class AuthService:
 
     @staticmethod
     def _public_item(item: dict[str, object]) -> dict[str, object]:
+        daily_image_count = (
+            int(item.get("daily_image_count") or 0)
+            if str(item.get("daily_image_date") or "") == _today_iso()
+            else 0
+        )
         return {
             "id": item.get("id"),
             "name": item.get("name"),
@@ -196,6 +219,10 @@ class AuthService:
             "enabled": bool(item.get("enabled", True)),
             "created_at": item.get("created_at"),
             "last_used_at": item.get("last_used_at"),
+            "email": item.get("email"),
+            "phone": item.get("phone"),
+            "usage_count": int(item.get("usage_count") or 0),
+            "daily_image_count": daily_image_count,
         }
 
     def list_keys(self, role: AuthRole | None = None) -> list[dict[str, object]]:
@@ -417,6 +444,174 @@ class AuthService:
                     return self._public_item(next_item)
                 self._set_cached_item_locked(next_item, result.revision)
                 self._last_used_flush_at[item_id] = now
+                return self._public_item(next_item)
+        return None
+
+    @staticmethod
+    def _password_hash(password: str, salt: str | None = None) -> str:
+        salt = salt or secrets.token_hex(16)
+        digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 180_000).hex()
+        return f"{salt}${digest}"
+
+    @classmethod
+    def _password_matches(cls, password: str, encoded: str) -> bool:
+        salt, _, digest = encoded.partition("$")
+        if not salt or not digest:
+            return False
+        candidate = cls._password_hash(password, salt).partition("$")[2]
+        return hmac.compare_digest(candidate, digest)
+
+    def register(self, *, email: str, password: str, username: str, phone: str = "", terms_accepted: bool = False) -> tuple[dict[str, object], str]:
+        email = self._clean(email).lower()
+        username = self._clean(username)
+        phone = self._clean(phone)
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+            raise ValueError("请输入有效的邮箱")
+        if not username:
+            raise ValueError("请输入用户名")
+        if len(password) < 8:
+            raise ValueError("密码至少需要 8 位")
+        if not terms_accepted:
+            raise ValueError("请先同意用户协议")
+        with self._lock:
+            self._reload_locked()
+            if any(self._clean(item.get("email")).lower() == email for item in self._items):
+                raise ValueError("该邮箱已经注册")
+            raw_key = f"sk-{secrets.token_urlsafe(24)}"
+            item = {
+                "id": uuid.uuid4().hex[:12], "name": username, "role": "user",
+                "key_hash": _hash_key(raw_key), "enabled": True,
+                "created_at": _now_iso(), "last_used_at": _now_iso(),
+                "email": email, "phone": phone or None,
+                "password_hash": self._password_hash(password),
+                "terms_accepted_at": _now_iso(), "usage_count": 0,
+                "daily_image_date": _today_iso(), "daily_image_count": 0,
+            }
+            result = self.storage.mutate_auth_keys(StorageMutation(upserts=(item,), expected_revision=self._revision))
+            self._set_cached_item_locked(item, result.revision)
+            return self._public_item(item), raw_key
+
+    def authenticate_password(self, email: str, password: str) -> tuple[dict[str, object], str] | None:
+        email = self._clean(email).lower()
+        with self._lock:
+            self._reload_locked()
+            for item in self._items:
+                if item.get("role") != "user" or self._clean(item.get("email")).lower() != email:
+                    continue
+                if not bool(item.get("enabled", True)) or not self._password_matches(password, self._clean(item.get("password_hash"))):
+                    return None
+                raw_key = f"sk-{secrets.token_urlsafe(24)}"
+                next_item = dict(item)
+                next_item["key_hash"] = _hash_key(raw_key)
+                next_item["last_used_at"] = _now_iso()
+                result = self.storage.mutate_auth_keys(StorageMutation(upserts=(next_item,), expected_revision=self._revision))
+                self._set_cached_item_locked(next_item, result.revision)
+                return self._public_item(next_item), raw_key
+        return None
+
+    def successful_image_usage(self, user_id: str) -> tuple[int, int]:
+        normalized_id = self._clean(user_id)
+        if not normalized_id:
+            return 0, 0
+        with self._lock:
+            self._reload_locked(suppress_errors=True)
+            index = self._find_item_index_locked(normalized_id, role="user")
+            if index is None:
+                return 0, 0
+            item = self._items[index]
+            total = max(0, int(item.get("usage_count") or 0))
+            daily = (
+                max(0, int(item.get("daily_image_count") or 0))
+                if self._clean(item.get("daily_image_date")) == _today_iso()
+                else 0
+            )
+            return daily, total
+
+    def reserve_successful_images(self, user_id: str, count: int, limit: int) -> str:
+        normalized_id = self._clean(user_id)
+        requested = max(1, int(count or 1))
+        normalized_limit = max(0, int(limit or 0))
+        if not normalized_id:
+            raise ValueError("用户身份无效")
+        with self._lock:
+            self._reload_locked()
+            index = self._find_item_index_locked(normalized_id, role="user")
+            if index is None:
+                raise ValueError("用户不存在或已被删除")
+            item = self._items[index]
+            used = (
+                max(0, int(item.get("daily_image_count") or 0))
+                if self._clean(item.get("daily_image_date")) == _today_iso()
+                else 0
+            )
+            reserved = sum(
+                reserved_count
+                for reserved_user_id, reserved_count in self._image_quota_reservations.values()
+                if reserved_user_id == normalized_id
+            )
+            if normalized_limit and used + reserved + requested > normalized_limit:
+                raise ImageQuotaExceededError(f"今日生图额度已用尽（{normalized_limit} 张）")
+            reservation_id = uuid.uuid4().hex
+            self._image_quota_reservations[reservation_id] = (normalized_id, requested)
+            return reservation_id
+
+    def release_successful_images(self, reservation_id: str) -> None:
+        normalized_id = self._clean(reservation_id)
+        if not normalized_id:
+            return
+        with self._lock:
+            self._image_quota_reservations.pop(normalized_id, None)
+
+    def complete_successful_images(self, reservation_id: str, count: int) -> dict[str, object] | None:
+        normalized_id = self._clean(reservation_id)
+        succeeded = max(0, int(count or 0))
+        if not normalized_id:
+            return None
+        with self._lock:
+            reservation = self._image_quota_reservations.pop(normalized_id, None)
+        if reservation is None or succeeded <= 0:
+            return None
+        user_id, reserved = reservation
+        try:
+            return self.record_successful_images(user_id, min(reserved, succeeded))
+        except Exception:
+            with self._lock:
+                self._image_quota_reservations[normalized_id] = reservation
+            raise
+
+    def record_successful_images(self, user_id: str, count: int) -> dict[str, object] | None:
+        normalized_id = self._clean(user_id)
+        increment = max(0, int(count or 0))
+        if not normalized_id or increment <= 0:
+            return None
+        with self._lock:
+            for attempt in range(_CAS_ATTEMPTS):
+                self._reload_locked()
+                index = self._find_item_index_locked(normalized_id, role="user")
+                if index is None:
+                    return None
+                next_item = dict(self._items[index])
+                today = _today_iso()
+                current_daily = (
+                    max(0, int(next_item.get("daily_image_count") or 0))
+                    if self._clean(next_item.get("daily_image_date")) == today
+                    else 0
+                )
+                next_item["usage_count"] = max(0, int(next_item.get("usage_count") or 0)) + increment
+                next_item["daily_image_date"] = today
+                next_item["daily_image_count"] = current_daily + increment
+                try:
+                    result = self.storage.mutate_auth_keys(
+                        StorageMutation(
+                            upserts=(next_item,),
+                            expected_revision=self._revision,
+                        )
+                    )
+                except StorageRevisionConflictError:
+                    if attempt + 1 >= _CAS_ATTEMPTS:
+                        raise
+                    continue
+                self._set_cached_item_locked(next_item, result.revision)
                 return self._public_item(next_item)
         return None
 

@@ -70,6 +70,9 @@
           </Button>
         </div>
       </div>
+      <div class="studio-usage-notice" role="status">
+        每日生图上限 {{ userDailyImageLimit }} 张 · 图片保存 {{ imageRetentionLabel }}
+      </div>
 
       <StudioMessageList
         ref="messageListRef"
@@ -176,6 +179,7 @@ import { Icon } from '@iconify/vue'
 import { Button } from 'nanocat-ui'
 import { computed, defineAsyncComponent, onBeforeUnmount, ref } from 'vue'
 import { useToast } from '@/composables/useToast'
+import { usePublicRuntimeConfig } from '@/composables/usePublicRuntimeConfig'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { usePageRuntime } from '@/composables/usePageRuntime'
 import { preloadPromptLibrary } from '@/composables/usePromptLibraryRuntime'
@@ -233,6 +237,14 @@ const StudioSearchSkillModal = defineAsyncComponent(() => import('@/components/s
 const StudioRecentFileTasksModal = defineAsyncComponent(() => import('@/components/studio/StudioRecentFileTasksModal.vue'))
 
 const toast = useToast()
+const publicRuntime = usePublicRuntimeConfig()
+void publicRuntime.loadPublicRuntimeConfig()
+const userDailyImageLimit = publicRuntime.userDailyImageLimit
+const imageRetentionLabel = computed(() => {
+  const hours = publicRuntime.imageRetentionHours.value
+  if (hours % 24 === 0) return `${hours / 24} 天`
+  return `${hours} 小时`
+})
 const confirmDialog = useConfirmDialog()
 const pageRuntime = usePageRuntime('studio')
 const composerRuntime = useStudioComposerRuntime()
@@ -789,6 +801,13 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.studio-usage-notice {
+  padding: 6px 16px;
+  border-bottom: 1px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  text-align: center;
+}
 .studio-workspace {
   --studio-content-width: min(100%, clamp(48rem, 68vw, 78rem));
   --ui-card-border: hsl(var(--border));

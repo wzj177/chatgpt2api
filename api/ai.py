@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from api.image_inputs import parse_image_edit_request, read_image_sources
 from api.support import require_identity, resolve_image_base_url
+from services.auth_service import ImageQuotaExceededError
 from services.content_filter import check_request, request_shape, request_text
 from services.editable_file_task_service import (
     EditableFileTaskCleanupError,
@@ -113,6 +114,12 @@ async def filter_or_log(call: LoggedCall, text: str) -> None:
 def create_router() -> APIRouter:
     router = APIRouter()
 
+    def reserve_image_quota(call: LoggedCall, requested: int) -> None:
+        try:
+            call.reserve_image_quota(requested)
+        except ImageQuotaExceededError as exc:
+            raise HTTPException(status_code=429, detail={"error": str(exc)}) from exc
+
     async def submit_editable_file_task(submit, identity, **kwargs):
         try:
             return await run_in_threadpool(submit, identity, **kwargs)
@@ -139,10 +146,12 @@ def create_router() -> APIRouter:
         identity = require_identity(authorization)
         payload = body.model_dump(mode="python")
         payload["base_url"] = resolve_image_base_url(request)
+        payload["_owner_id"] = str(identity.get("id") or "")
         call = LoggedCall(identity, "/v1/images/generations", body.model, "文生图", request_text=body.prompt)
         attach_trace_headers(call, request)
         call.attach_trace_metadata(payload)
         await filter_or_log(call, body.prompt)
+        reserve_image_quota(call, body.n)
         return await call.run(openai_v1_image_generations.handle, payload)
 
     @router.post("/v1/images/edits")
@@ -162,6 +171,8 @@ def create_router() -> APIRouter:
         if mask_sources:
             payload["mask"] = await read_image_sources(mask_sources)
         payload["base_url"] = resolve_image_base_url(request)
+        payload["_owner_id"] = str(identity.get("id") or "")
+        reserve_image_quota(call, int(payload.get("n") or 1))
         return await call.run(openai_v1_image_edit.handle, payload)
 
     @router.post("/v1/chat/completions")
@@ -184,6 +195,9 @@ def create_router() -> APIRouter:
         attach_trace_headers(call, request)
         call.attach_trace_metadata(payload)
         await filter_or_log(call, request_preview)
+        if image_chat:
+            payload["_owner_id"] = str(identity.get("id") or "")
+            reserve_image_quota(call, int(payload.get("n") or 1))
         return await call.run(openai_v1_chat_complete.handle, payload)
 
     @router.post("/v1/responses")
@@ -204,6 +218,9 @@ def create_router() -> APIRouter:
         )
         call.attach_trace_metadata(payload)
         await filter_or_log(call, request_preview)
+        if image_response:
+            payload["_owner_id"] = str(identity.get("id") or "")
+            reserve_image_quota(call, 1)
         return await call.run(openai_v1_response.handle, payload)
 
     @router.post("/v1/messages")

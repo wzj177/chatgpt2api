@@ -32,9 +32,9 @@ export interface GalleryRow {
   expires_at: string | null
   expires_in_seconds: number | null
   tags: string[]
-  storage: GalleryStorage
-  local: boolean
-  webdav: boolean
+  storage: GalleryStorage | null
+  local: boolean | null
+  webdav: boolean | null
   available: boolean
   width: number | null
   height: number | null
@@ -42,7 +42,7 @@ export interface GalleryRow {
 }
 
 export type GalleryFile = Omit<GalleryRow, 'storage'> & {
-  storage: GalleryStorage | 'log' | 'studio'
+  storage: GalleryStorage | 'log' | 'studio' | null
 }
 
 export interface GalleryMediaFacets {
@@ -59,6 +59,8 @@ export interface GalleryResponse {
   retention_hours: number
   capabilities: {
     genbox_push: boolean
+    storage_management: boolean
+    tags: boolean
   }
   facets: {
     media_types: GalleryMediaFacets

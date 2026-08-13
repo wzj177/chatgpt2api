@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Literal, Mapping
 
 from services.genbox_push_view import genbox_push_state
+from services.image_storage_service import signed_image_query
 from utils.timezone import beijing_now, parse_to_beijing_naive
 
 
@@ -74,6 +75,7 @@ def gallery_row(
     base_url: str,
     tags: list[str],
     retention_hours: int,
+    admin: bool = False,
 ) -> dict[str, Any]:
     path = _text(item.get("path") or item.get("rel") or item.get("name"))
     filename = _text(item.get("name") or item.get("filename")) or Path(path).name
@@ -81,12 +83,14 @@ def gallery_row(
     expired, expires_at, expires_in_seconds = (
         _expiry(item, retention_hours) if local else (False, None, None)
     )
+    owner_id = _text(item.get("owner_id")) or "anonymous"
+    query = signed_image_query(path, owner_id)
     return {
         "id": path,
         "path": path,
         "filename": filename,
-        "url": _text(item.get("url")) or f"{base_url.rstrip('/')}/images/{path}",
-        "thumbnail_url": _thumbnail_url(base_url, path),
+        "url": f"{base_url.rstrip('/')}/images/{path}?{query}",
+        "thumbnail_url": f"{_thumbnail_url(base_url, path)}?{query}",
         "size_bytes": _non_negative_int(item.get("size") or item.get("size_bytes")),
         "created_at": _text(item.get("created_at")),
         "date": _text(item.get("date")),
@@ -94,14 +98,14 @@ def gallery_row(
         "expired": expired,
         "expires_at": expires_at,
         "expires_in_seconds": expires_in_seconds,
-        "tags": _unique_texts(tags),
-        "storage": storage,
-        "local": local,
-        "webdav": webdav,
+        "tags": _unique_texts(tags) if admin else [],
+        "storage": storage if admin else None,
+        "local": local if admin else None,
+        "webdav": webdav if admin else None,
         "available": local or webdav,
         "width": _positive_int_or_none(item.get("width")),
         "height": _positive_int_or_none(item.get("height")),
-        "genbox_push": genbox_push_state(item.get("genbox_push")),
+        "genbox_push": genbox_push_state(item.get("genbox_push")) if admin else None,
     }
 
 
@@ -142,6 +146,7 @@ def gallery_page(
     genbox_push_enabled: bool = False,
     tag: str = "",
     search: str = "",
+    admin: bool = False,
 ) -> dict[str, Any]:
     rows = [
         gallery_row(
@@ -149,6 +154,7 @@ def gallery_page(
             base_url=base_url,
             tags=tags_by_path.get(_text(item.get("path") or item.get("rel")), []),
             retention_hours=retention_hours,
+            admin=admin,
         )
         for item in raw_items
     ]
@@ -179,6 +185,8 @@ def gallery_page(
         "retention_hours": retention_hours,
         "capabilities": {
             "genbox_push": bool(genbox_push_enabled),
+            "storage_management": admin,
+            "tags": admin,
         },
         "facets": {
             "media_types": media_facets,

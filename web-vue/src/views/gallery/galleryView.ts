@@ -69,6 +69,7 @@ export function formatDimensions(file: GalleryFile): string {
 }
 
 export function storageLabel(file: GalleryFile): string {
+  if (!file.storage) return '我的图片'
   if (file.storage === 'both') return '本地+云'
   if (file.storage === 'webdav') return '云端'
   return '本地'
@@ -158,6 +159,6 @@ export function buildGalleryMetricItems(
     { label: '当前视图', value: totalItems, icon: 'lucide:image', iconClass: 'text-cyan-600', iconBgClass: 'bg-transparent' },
     { label: '图库总量', value: storageStats ? storageStats.image_count : counts.all, icon: 'lucide:archive', iconClass: 'text-violet-600', iconBgClass: 'bg-transparent' },
     { label: '当前占用', value: formatSize(totalSize), icon: 'lucide:database', iconClass: 'text-emerald-600', iconBgClass: 'bg-transparent' },
-    { label: '磁盘剩余', value: storageStats ? formatSize(storageStats.disk_free_mb * 1024 * 1024) : '-', icon: 'lucide:hard-drive', iconClass: 'text-amber-600', iconBgClass: 'bg-transparent' },
+    ...(storageStats ? [{ label: '磁盘剩余', value: formatSize(storageStats.disk_free_mb * 1024 * 1024), icon: 'lucide:hard-drive', iconClass: 'text-amber-600', iconBgClass: 'bg-transparent' }] : []),
   ]
 }

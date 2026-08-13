@@ -38,6 +38,8 @@ export function useGalleryQueryRuntime(options: GalleryQueryRuntimeOptions) {
   const counts = ref({ all: 0, image: 0 })
   const allTags = ref<string[]>([])
   const genboxPushEnabled = ref(false)
+  const storageManagementEnabled = ref(false)
+  const tagsEnabled = ref(false)
 
   const tagOptions = computed(() => buildTagOptions(allTags.value))
 
@@ -67,6 +69,8 @@ export function useGalleryQueryRuntime(options: GalleryQueryRuntimeOptions) {
       counts.value = data.facets.media_types
       allTags.value = data.facets.tags
       genboxPushEnabled.value = data.capabilities.genbox_push
+      storageManagementEnabled.value = data.capabilities.storage_management
+      tagsEnabled.value = data.capabilities.tags
       options.onApplied?.()
     },
     onError: (message) => {
@@ -147,6 +151,8 @@ export function useGalleryQueryRuntime(options: GalleryQueryRuntimeOptions) {
     counts,
     allTags,
     genboxPushEnabled,
+    storageManagementEnabled,
+    tagsEnabled,
     tagOptions,
     currentPage,
     pageCount,

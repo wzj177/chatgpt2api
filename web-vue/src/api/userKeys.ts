@@ -7,6 +7,10 @@ export interface UserKey {
   enabled: boolean
   created_at?: string | null
   last_used_at?: string | null
+  email?: string | null
+  phone?: string | null
+  usage_count: number
+  daily_image_count: number
 }
 
 export interface UserKeysResponse {
@@ -32,8 +36,17 @@ export interface UserKeyDeleteResponse {
   deleted_id: string
 }
 
+export interface UserStats {
+  total_registered: number
+  active_today: number
+  images_today: number
+  total_usage: number
+  daily_image_limit: number
+}
+
 export const userKeysApi = {
   list: () => apiClient.get<never, UserKeysResponse>('/api/auth/users'),
+  stats: () => apiClient.get<never, UserStats>('/api/auth/users/stats'),
 
   create: (name: string) =>
     apiClient.post<{ name: string }, UserKeyCreateResponse>('/api/auth/users', { name }),

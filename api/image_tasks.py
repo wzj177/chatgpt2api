@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from api.image_inputs import parse_image_edit_request, read_image_sources
 from api.image_task_contract import ImageTaskPage, ImageTaskRow
 from api.support import require_identity, resolve_image_base_url
+from services.auth_service import ImageQuotaExceededError
 from services.content_filter import check_request
 from services.image_task_service import ImageTaskQueueFullError, image_task_service
 from services.log_service import LoggedCall
@@ -77,6 +78,8 @@ def create_router() -> APIRouter:
             )
         except ImageTaskQueueFullError as exc:
             raise _queue_full_http_error(exc) from exc
+        except ImageQuotaExceededError as exc:
+            raise HTTPException(status_code=429, detail={"error": str(exc)}) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
 
@@ -114,6 +117,8 @@ def create_router() -> APIRouter:
             )
         except ImageTaskQueueFullError as exc:
             raise _queue_full_http_error(exc) from exc
+        except ImageQuotaExceededError as exc:
+            raise HTTPException(status_code=429, detail={"error": str(exc)}) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
         finally:
@@ -137,6 +142,8 @@ def create_router() -> APIRouter:
             )
         except ImageTaskQueueFullError as exc:
             raise _queue_full_http_error(exc) from exc
+        except ImageQuotaExceededError as exc:
+            raise HTTPException(status_code=429, detail={"error": str(exc)}) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
 

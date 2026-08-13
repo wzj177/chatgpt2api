@@ -484,6 +484,7 @@ def response_events(body: dict[str, Any]) -> Iterator[dict[str, Any]]:
         message_as_error=True,
         call_id=str(body.get("_call_id") or ""),
         trace_image_perf=bool(body.get("_trace_image_perf")),
+        owner_id=str(body.get("_owner_id") or ""),
     ))
     yield from stream_image_response(image_outputs, prompt, model, input_image_tokens, tool.get("size"), str(tool.get("quality") or "auto"))
 

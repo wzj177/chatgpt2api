@@ -489,6 +489,10 @@ class ConfigStore:
         )
 
     @property
+    def user_daily_image_limit(self) -> int:
+        return normalize_integer_setting("user_daily_image_limit", self.data.get("user_daily_image_limit", 20))
+
+    @property
     def log_retention_hours(self) -> int:
         return normalize_integer_setting(
             "log_retention_hours",

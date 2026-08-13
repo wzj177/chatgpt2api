@@ -36,6 +36,12 @@ export const appRoutes: RouteRecordRaw[] = [
         meta: { requiredCapability: 'admin_console' },
       },
       {
+        path: 'users',
+        name: 'users',
+        component: () => import('@/views/Users.vue'),
+        meta: { requiredCapability: 'admin_console', management: true },
+      },
+      {
         path: 'proxy',
         name: 'proxy',
         component: () => import('@/views/Proxy.vue'),
@@ -57,7 +63,7 @@ export const appRoutes: RouteRecordRaw[] = [
         path: 'gallery',
         name: 'gallery',
         component: () => import('@/views/Gallery.vue'),
-        meta: { requiredCapability: 'admin_console', management: true },
+        meta: { requiredCapability: 'studio', workspace: true },
       },
       {
         path: 'studio',

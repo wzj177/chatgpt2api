@@ -33,6 +33,7 @@ def handle(body: dict[str, Any]) -> dict[str, Any] | Iterator[dict[str, Any]]:
         progress_callback=progress_callback,
         call_id=str(body.get("_call_id") or ""),
         trace_image_perf=bool(body.get("_trace_image_perf")),
+        owner_id=str(body.get("_owner_id") or ""),
     ))
     if body.get("stream"):
         input_text_tokens = count_text_tokens(prompt, model)

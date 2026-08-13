@@ -31,6 +31,7 @@ class AuthView(_StrictModel):
     subject: AuthSubject | None
     capabilities: AuthCapabilities = Field(default_factory=AuthCapabilities)
     home_route: AuthHomeRoute
+    access_token: str | None = None
 
     @model_validator(mode="after")
     def validate_session_shape(self) -> "AuthView":
@@ -51,6 +52,27 @@ class AuthView(_StrictModel):
         return self
 
 
+class RegisterRequest(_StrictModel):
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=8, max_length=128)
+    password_confirmation: str = Field(min_length=8, max_length=128)
+    username: str = Field(min_length=1, max_length=80)
+    phone: str = ""
+    captcha: str = ""
+    accepted_terms: bool = False
+
+
+class PasswordLoginRequest(_StrictModel):
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=1, max_length=128)
+    captcha: str = ""
+
+
+class PublicProtocolView(_StrictModel):
+    markdown: str
+    revision: str
+
+
 class UserKeyCreateRequest(_StrictModel):
     name: str = ""
 
@@ -68,6 +90,10 @@ class UserKeyView(_StrictModel):
     enabled: bool
     created_at: str | None = None
     last_used_at: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    usage_count: int = 0
+    daily_image_count: int = 0
 
 
 class UserKeyListView(_StrictModel):

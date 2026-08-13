@@ -6,17 +6,19 @@ services:
     image: chatgpt2api:local
     container_name: chatgpt2api-local
     ports:
-      - "8000:80"
+      - "58002:80"
     volumes:
       - ./data:/app/data
       - ./config.json:/app/config.json
     environment:
       DATABASE_URL: sqlite:////app/data/chatgpt2api.db
+      CHATGPT2API_AUTH_KEY: ${CHATGPT2API_AUTH_KEY:-}
+      CHATGPT2API_BASE_URL: ${CHATGPT2API_BASE_URL:-}
+      CHATGPT2API_THREAD_TOKENS: ${CHATGPT2API_THREAD_TOKENS:-120}
+      TZ: ${TZ:-Asia/Shanghai}
     # 应用数据库；删除 DATABASE_URL 时同样默认使用 /app/data/chatgpt2api.db
     #   DATABASE_URL: postgresql://user:password@host:5432/dbname
 
-    # 认证密钥 (可选，覆盖 config.json)
-    #   CHATGPT2API_AUTH_KEY: your_secret_key
+    # 认证密钥从 .env 的 CHATGPT2API_AUTH_KEY 读取，并覆盖 config.json。
 
-    # 基础 URL (可选)
-    #   CHATGPT2API_BASE_URL: https://your-domain.com
+    # 基础 URL 可通过 .env 的 CHATGPT2API_BASE_URL 设置。

@@ -3,7 +3,7 @@
     <PagePanel class="gallery-hero">
       <PanelHeader title="图片管理">
         <template #actions>
-          <Button size="sm" variant="outline" :disabled="isLoading" @click="openStorageModal">
+          <Button v-if="storageManagementEnabled" size="sm" variant="outline" :disabled="isLoading" @click="openStorageModal">
             存储管理
           </Button>
           <Button size="sm" variant="outline" :disabled="isLoading" @click="refreshAll">
@@ -25,7 +25,7 @@
           root-class="gallery-filter-search"
           @update:model-value="searchQuery = $event"
         />
-        <div class="gallery-filter-field gallery-filter-field--tag">
+        <div v-if="tagsEnabled" class="gallery-filter-field gallery-filter-field--tag">
           <GroupedSelectMenu
             v-model="tagFilter"
             :options="tagOptions"
@@ -131,6 +131,8 @@
             :genbox-push-enabled="genboxPushEnabled"
             :genbox-busy="genboxPushBusyPath === file.path"
             :genbox-status-label="genboxStatusLabel(file)"
+            :show-copy-action="isAdmin"
+            :show-tag-action="tagsEnabled"
             @preview="openPreview"
             @select="handleCardSelect"
             @image-error="handleCardImageError"
@@ -161,6 +163,8 @@
       :image-url="previewFile ? getFileUrl(previewFile.url) : ''"
       :size-label="previewFile ? formatSize(previewFile.size_bytes) : ''"
       :copied="Boolean(previewFile && copiedFileKey === previewFile.path)"
+      :show-copy-action="isAdmin"
+      :show-tag-action="tagsEnabled"
       @close="closePreview"
       @download="downloadFile"
       @copy="copyFileLink"
@@ -168,6 +172,7 @@
     />
 
     <GalleryTagEditorModal
+      v-if="tagsEnabled"
       :file="tagEditorFile"
       :image-url="tagEditorFile ? getFileUrl(tagEditorFile.thumbnail_url || tagEditorFile.url) : ''"
       :draft="tagDraft"
@@ -312,6 +317,7 @@ import StateBlock from '@/components/ai/StateBlock.vue'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { useToast } from '@/composables/useToast'
 import { usePageRuntime } from '@/composables/usePageRuntime'
+import { useAuthStore } from '@/stores/auth'
 import { useListLayoutPreference } from '@/composables/useListLayoutPreference'
 import { useGalleryFileActions } from '@/composables/useGalleryFileActions'
 import { useGalleryInteractionRuntime } from '@/views/gallery/galleryInteractionRuntime'
@@ -338,6 +344,8 @@ const GalleryTagEditorModal = defineAsyncComponent(() => import('@/components/ai
 const OperationProgressDrawer = defineAsyncComponent(() => import('@/components/ai/OperationProgressDrawer.vue'))
 
 const toast = useToast()
+const authStore = useAuthStore()
+const isAdmin = computed(() => authStore.isAdmin)
 const confirmDialog = useConfirmDialog()
 const { listLayoutMode, isWorkspaceLayout } = useListLayoutPreference()
 
@@ -363,6 +371,8 @@ const pageSize = galleryQueryRuntime.pageSize
 const counts = galleryQueryRuntime.counts
 const allTags = galleryQueryRuntime.allTags
 const genboxPushEnabled = galleryQueryRuntime.genboxPushEnabled
+const storageManagementEnabled = galleryQueryRuntime.storageManagementEnabled
+const tagsEnabled = galleryQueryRuntime.tagsEnabled
 const tagOptions = galleryQueryRuntime.tagOptions
 const currentPage = galleryQueryRuntime.currentPage
 const totalItems = galleryQueryRuntime.totalItems
@@ -485,7 +495,7 @@ function handleCardImageError(event: Event, file: GalleryFile) {
 function handleGalleryApplied() {
   clearBrokenImages()
   pruneSelection()
-  void refreshStorageStats({ lock: false, silent: true })
+  if (storageManagementEnabled.value) void refreshStorageStats({ lock: false, silent: true })
 }
 
 const downloadFile = fileActions.downloadFile

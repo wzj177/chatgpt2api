@@ -68,6 +68,8 @@ export interface Settings {
   base_url: string
   refresh_account_interval_minute: number
   image_retention_hours: number
+  user_daily_image_limit: number
+  protocol_markdown: string
   log_retention_hours: number
   image_poll_timeout_secs: number
   image_stream_timeout_secs: number
