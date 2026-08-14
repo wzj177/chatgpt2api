@@ -13,10 +13,7 @@
         :user-stats="userStats"
         :user-keys-loading="userKeysLoading"
         :user-key-busy="userKeyBusy"
-        :new-user-key="newUserKey"
         @load="loadUserKeys"
-        @create="openUserKeyCreateModal"
-        @copy="copyUserKey"
         @edit="openUserKeyEditModal"
         @toggle="toggleUserKey"
         @delete="deleteUserKey"
@@ -29,7 +26,6 @@
       :editing-user-key="editingUserKey"
       :busy="userKeyBusy"
       @close="closeUserKeyModal"
-      @create="createUserKey"
       @update="updateUserKey"
     />
   </div>
@@ -56,14 +52,10 @@ const userKeysLoading = userKeysRuntime.userKeysLoading
 const userKeyBusy = userKeysRuntime.userKeyBusy
 const userKeyModal = userKeysRuntime.userKeyModal
 const editingUserKey = userKeysRuntime.editingUserKey
-const newUserKey = userKeysRuntime.newUserKey
 const userKeyForm = userKeysRuntime.userKeyForm
-const copyUserKey = userKeysRuntime.copyUserKey
-const openUserKeyCreateModal = userKeysRuntime.openUserKeyCreateModal
 const openUserKeyEditModal = userKeysRuntime.openUserKeyEditModal
 const closeUserKeyModal = userKeysRuntime.closeUserKeyModal
 const loadUserKeys = userKeysRuntime.loadUserKeys
-const createUserKey = userKeysRuntime.createUserKey
 const updateUserKey = userKeysRuntime.updateUserKey
 const toggleUserKey = userKeysRuntime.toggleUserKey
 const deleteUserKey = userKeysRuntime.deleteUserKey

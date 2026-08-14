@@ -15,8 +15,6 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from contracts.auth import (
-    UserKeyCreateRequest,
-    UserKeyCreateResult,
     UserKeyDeleteResult,
     UserKeyListView,
     UserKeyUpdateRequest,
@@ -1161,15 +1159,6 @@ def create_router() -> APIRouter:
         require_admin(authorization)
         items = await run_in_threadpool(auth_service.list_keys, role="user")
         return {"items": items}
-
-    @router.post("/api/auth/users", response_model=UserKeyCreateResult)
-    async def create_user_key(body: UserKeyCreateRequest, authorization: str | None = Header(default=None)):
-        require_admin(authorization)
-        try:
-            item, raw_key = await run_in_threadpool(auth_service.create_key, role="user", name=body.name)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
-        return {"item": item, "raw_key": raw_key}
 
     @router.post("/api/auth/users/{key_id}", response_model=UserKeyUpdateResult)
     async def update_user_key(

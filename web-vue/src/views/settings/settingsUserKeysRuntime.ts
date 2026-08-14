@@ -1,4 +1,4 @@
-import { onDeactivated, onScopeDispose, ref } from 'vue'
+import { ref } from 'vue'
 
 import { userKeysApi, type UserKey, type UserStats } from '@/api/userKeys'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
@@ -27,28 +27,11 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
   const userKeysLoading = ref(false)
   const userStats = ref<UserStats | null>(null)
   const userKeyBusy = ref('')
-  const userKeyModal = ref<'create' | 'edit' | ''>('')
+  const userKeyModal = ref<'edit' | ''>('')
   const editingUserKey = ref<UserKey | null>(null)
-  const newUserKey = ref('')
   const userKeyForm = ref<UserKeyForm>(createUserKeyForm())
   const toast = useToast()
   const confirmDialog = useConfirmDialog()
-  let rawKeyClearTimer: ReturnType<typeof window.setTimeout> | null = null
-
-  function clearNewUserKey() {
-    if (rawKeyClearTimer !== null) {
-      window.clearTimeout(rawKeyClearTimer)
-      rawKeyClearTimer = null
-    }
-    newUserKey.value = ''
-  }
-
-  function revealNewUserKey(rawKey: string) {
-    clearNewUserKey()
-    newUserKey.value = rawKey
-    if (!rawKey) return
-    rawKeyClearTimer = window.setTimeout(clearNewUserKey, 120000)
-  }
 
   function upsertUserKey(item: UserKey) {
     const index = userKeys.value.findIndex(candidate => candidate.id === item.id)
@@ -59,9 +42,6 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
     userKeys.value = userKeys.value.map(candidate => candidate.id === item.id ? item : candidate)
   }
 
-  onDeactivated(clearNewUserKey)
-  onScopeDispose(clearNewUserKey)
-
   const userKeysQuery = usePageQuery({
     runtime: options.runtime,
     key: options.requestKey,
@@ -69,26 +49,9 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
     errorMessage: '加载用户密钥失败',
   })
 
-  async function copyUserKey(value: string) {
-    if (!value) return
-    try {
-      await navigator.clipboard.writeText(value)
-      if (value === newUserKey.value) clearNewUserKey()
-      toast.success('已复制密钥')
-    } catch {
-      toast.error('复制失败，请手动复制')
-    }
-  }
-
   function resetUserKeyForm() {
     userKeyForm.value = createUserKeyForm()
     editingUserKey.value = null
-  }
-
-  function openUserKeyCreateModal() {
-    clearNewUserKey()
-    resetUserKeyForm()
-    userKeyModal.value = 'create'
   }
 
   function openUserKeyEditModal(item: UserKey) {
@@ -101,7 +64,6 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
   }
 
   function closeUserKeyModal() {
-    if (userKeyBusy.value === 'create') return
     if (editingUserKey.value && userKeyBusy.value === editingUserKey.value.id) return
     userKeyModal.value = ''
     resetUserKeyForm()
@@ -126,22 +88,6 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
         },
       },
     )
-  }
-
-  async function createUserKey() {
-    userKeyBusy.value = 'create'
-    try {
-      const response = await userKeysApi.create(userKeyForm.value.name.trim())
-      upsertUserKey(response.item)
-      revealNewUserKey(response.raw_key)
-      toast.success('用户密钥已创建')
-      userKeyModal.value = ''
-      resetUserKeyForm()
-    } catch (error) {
-      toast.error(errorMessage(error, '创建用户密钥失败'))
-    } finally {
-      userKeyBusy.value = ''
-    }
   }
 
   async function updateUserKey() {
@@ -210,7 +156,6 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
   }
 
   function invalidate() {
-    clearNewUserKey()
     userKeysQuery.invalidate()
     userKeysLoaded.value = false
   }
@@ -223,15 +168,11 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
     userKeyBusy,
     userKeyModal,
     editingUserKey,
-    newUserKey,
     userKeyForm,
-    copyUserKey,
     resetUserKeyForm,
-    openUserKeyCreateModal,
     openUserKeyEditModal,
     closeUserKeyModal,
     loadUserKeys,
-    createUserKey,
     updateUserKey,
     toggleUserKey,
     deleteUserKey,

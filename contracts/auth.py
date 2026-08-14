@@ -73,10 +73,6 @@ class PublicProtocolView(_StrictModel):
     revision: str
 
 
-class UserKeyCreateRequest(_StrictModel):
-    name: str = ""
-
-
 class UserKeyUpdateRequest(_StrictModel):
     name: str | None = None
     enabled: bool | None = None
@@ -98,11 +94,6 @@ class UserKeyView(_StrictModel):
 
 class UserKeyListView(_StrictModel):
     items: list[UserKeyView] = Field(default_factory=list)
-
-
-class UserKeyCreateResult(_StrictModel):
-    item: UserKeyView
-    raw_key: str
 
 
 class UserKeyUpdateResult(_StrictModel):

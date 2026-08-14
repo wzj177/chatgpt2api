@@ -17,11 +17,6 @@ export interface UserKeysResponse {
   items: UserKey[]
 }
 
-export interface UserKeyCreateResponse {
-  item: UserKey
-  raw_key: string
-}
-
 export interface UserKeyUpdatePayload {
   name?: string
   enabled?: boolean
@@ -47,9 +42,6 @@ export interface UserStats {
 export const userKeysApi = {
   list: () => apiClient.get<never, UserKeysResponse>('/api/auth/users'),
   stats: () => apiClient.get<never, UserStats>('/api/auth/users/stats'),
-
-  create: (name: string) =>
-    apiClient.post<{ name: string }, UserKeyCreateResponse>('/api/auth/users', { name }),
 
   update: (keyId: string, updates: UserKeyUpdatePayload) =>
     apiClient.post<UserKeyUpdatePayload, UserKeyUpdateResponse>(`/api/auth/users/${keyId}`, updates),

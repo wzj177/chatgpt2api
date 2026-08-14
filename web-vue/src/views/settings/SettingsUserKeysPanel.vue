@@ -9,9 +9,6 @@
         <Button size="sm" variant="outline" :disabled="userKeysLoading" @click="$emit('load')">
           {{ userKeysLoading ? '刷新中...' : '刷新用户' }}
         </Button>
-        <Button size="sm" variant="primary" :disabled="userKeyBusy === 'create'" @click="$emit('create')">
-          创建用户
-        </Button>
       </div>
     </div>
 
@@ -20,18 +17,6 @@
       density="compact"
       columns-class="grid-cols-2 xl:grid-cols-4"
     />
-
-    <div v-if="newUserKey" class="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-      <div class="flex flex-wrap items-start justify-between gap-3">
-        <div class="min-w-0">
-          <p class="font-medium">新密钥只展示一次，请现在复制保存。</p>
-          <p class="mt-2 break-all font-mono text-xs">{{ newUserKey }}</p>
-        </div>
-        <Button size="xs" variant="outline" root-class="shrink-0 border-emerald-200 bg-white text-emerald-700" @click="$emit('copy', newUserKey)">
-          复制
-        </Button>
-      </div>
-    </div>
 
     <div class="flex flex-wrap items-center justify-between gap-3">
       <p class="text-xs text-muted-foreground">共 {{ userKeys.length }} 位用户</p>
@@ -113,13 +98,10 @@ const props = defineProps<{
   userStats: UserStats | null
   userKeysLoading: boolean
   userKeyBusy: string
-  newUserKey: string
 }>()
 
 defineEmits<{
   load: []
-  create: []
-  copy: [value: string]
   edit: [item: UserKey]
   toggle: [item: UserKey]
   delete: [item: UserKey]

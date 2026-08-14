@@ -71,8 +71,11 @@ export interface Settings {
   user_daily_image_limit: number
   protocol_markdown: string
   log_retention_hours: number
+  console_request_timeout_secs: number
   image_poll_timeout_secs: number
   image_stream_timeout_secs: number
+  image_poll_initial_wait_secs: number
+  image_poll_interval_secs: number
   image_account_concurrency: number
   account_processing_concurrency: number
   image_account_retry_enabled: boolean
