@@ -1,9 +1,9 @@
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 import { userKeysApi, type UserKey, type UserStats } from '@/api/userKeys'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import type { usePageRuntime } from '@/composables/usePageRuntime'
-import { usePageQuery } from '@/composables/usePageQuery'
+import { usePageQuery, usePagedQuery } from '@/composables/usePageQuery'
 import { useToast } from '@/composables/useToast'
 import { errorMessage } from '@/lib/errorMessage'
 
@@ -22,6 +22,7 @@ function createUserKeyForm(): UserKeyForm {
 }
 
 export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptions) {
+  const pageSize = ref(20)
   const userKeys = ref<UserKey[]>([])
   const userKeysLoaded = ref(false)
   const userKeysLoading = ref(false)
@@ -42,11 +43,32 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
     userKeys.value = userKeys.value.map(candidate => candidate.id === item.id ? item : candidate)
   }
 
-  const userKeysQuery = usePageQuery({
+  const userKeysQuery = usePagedQuery({
     runtime: options.runtime,
     key: options.requestKey,
+    pageSize,
     loading: userKeysLoading,
     errorMessage: '加载用户密钥失败',
+    fetch: ({ page, pageSize: size }) => userKeysApi.list({ page, page_size: size }),
+    resolvePage: response => response.page,
+    resolvePageCount: response => Math.max(1, Math.ceil(response.total / Math.max(1, response.page_size))),
+    resolveTotal: response => response.total,
+    apply: (response) => {
+      userKeys.value = Array.isArray(response.items) ? response.items : []
+      userKeysLoaded.value = true
+    },
+    onError: (message) => {
+      userKeys.value = []
+      toast.error(message)
+    },
+  })
+  const userStatsQuery = usePageQuery({
+    runtime: options.runtime,
+    key: `${options.requestKey}:stats`,
+    errorMessage: '加载用户统计失败',
+  })
+  watch(pageSize, () => {
+    void userKeysQuery.resetAndLoad()
   })
 
   function resetUserKeyForm() {
@@ -70,24 +92,16 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
   }
 
   async function loadUserKeys() {
-    await userKeysQuery.run(
-      async () => {
-        const [keys, stats] = await Promise.all([userKeysApi.list(), userKeysApi.stats()])
-        return { keys, stats }
-      },
-      {
-        apply: (response) => {
-          userKeys.value = Array.isArray(response.keys.items) ? response.keys.items : []
-          userStats.value = response.stats
-          userKeysLoaded.value = true
+    await Promise.all([
+      userKeysQuery.resetAndLoad(),
+      userStatsQuery.run(
+        () => userKeysApi.stats(),
+        {
+          apply: response => { userStats.value = response },
+          onError: () => { userStats.value = null },
         },
-        onError: (message) => {
-          userKeys.value = []
-          userStats.value = null
-          toast.error(message)
-        },
-      },
-    )
+      ),
+    ])
   }
 
   async function updateUserKey() {
@@ -147,6 +161,7 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
         userKeyModal.value = ''
         resetUserKeyForm()
       }
+      await userKeysQuery.load()
       toast.success('用户密钥已删除')
     } catch (error) {
       toast.error(errorMessage(error, '删除用户密钥失败'))
@@ -157,11 +172,16 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
 
   function invalidate() {
     userKeysQuery.invalidate()
+    userStatsQuery.invalidate()
     userKeysLoaded.value = false
   }
 
   return {
     userKeys,
+    currentPage: userKeysQuery.currentPage,
+    pageSize,
+    pageSizeOptions: [20, 50, 100],
+    userKeysTotal: userKeysQuery.total,
     userStats,
     userKeysLoaded,
     userKeysLoading,

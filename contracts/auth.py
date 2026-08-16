@@ -96,6 +96,9 @@ class UserKeyView(_StrictModel):
 
 class UserKeyListView(_StrictModel):
     items: list[UserKeyView] = Field(default_factory=list)
+    total: int = Field(default=0, ge=0)
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=20, ge=1)
 
 
 class UserKeyUpdateResult(_StrictModel):

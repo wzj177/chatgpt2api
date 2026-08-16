@@ -16,6 +16,9 @@ export interface UserKey {
 
 export interface UserKeysResponse {
   items: UserKey[]
+  total: number
+  page: number
+  page_size: number
 }
 
 export interface UserKeyUpdatePayload {
@@ -38,10 +41,14 @@ export interface UserStats {
   images_today: number
   total_usage: number
   daily_image_limit: number
+  total_quota: number
+  unknown_quota_count: number
+  unlimited_quota_count: number
 }
 
 export const userKeysApi = {
-  list: () => apiClient.get<never, UserKeysResponse>('/api/auth/users'),
+  list: (params?: { page?: number; page_size?: number }) =>
+    apiClient.get<never, UserKeysResponse>('/api/auth/users', { params: params || undefined }),
   stats: () => apiClient.get<never, UserStats>('/api/auth/users/stats'),
 
   update: (keyId: string, updates: UserKeyUpdatePayload) =>

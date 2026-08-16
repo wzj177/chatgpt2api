@@ -1155,10 +1155,18 @@ def create_router() -> APIRouter:
     router = APIRouter()
 
     @router.get("/api/auth/users", response_model=UserKeyListView)
-    async def list_user_keys(authorization: str | None = Header(default=None)):
+    async def list_user_keys(
+        page: int = Query(default=1, ge=1),
+        page_size: int = Query(default=20, ge=1, le=100),
+        authorization: str | None = Header(default=None),
+    ):
         require_admin(authorization)
-        items = await run_in_threadpool(auth_service.list_keys, role="user")
-        return {"items": items}
+        return await run_in_threadpool(
+            auth_service.list_keys_page,
+            role="user",
+            page=page,
+            page_size=page_size,
+        )
 
     @router.post("/api/auth/users/{key_id}", response_model=UserKeyUpdateResult)
     async def update_user_key(

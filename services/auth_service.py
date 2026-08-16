@@ -233,6 +233,24 @@ class AuthService:
             items = [item for item in self._items if role is None or item.get("role") == role]
             return [self._public_item(item) for item in items]
 
+    def list_keys_page(
+        self,
+        *,
+        role: AuthRole | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict[str, object]:
+        safe_page = max(1, int(page or 1))
+        safe_page_size = max(1, min(int(page_size or 20), 100))
+        items = self.list_keys(role=role)
+        start = (safe_page - 1) * safe_page_size
+        return {
+            "items": items[start:start + safe_page_size],
+            "total": len(items),
+            "page": safe_page,
+            "page_size": safe_page_size,
+        }
+
     def _has_key_hash_locked(self, key_hash: str, *, exclude_id: str = "") -> bool:
         for item in self._items:
             item_id = self._clean(item.get("id"))
@@ -555,7 +573,13 @@ class AuthService:
             )
             return daily, total
 
-    def reserve_successful_images(self, user_id: str, count: int, limit: int) -> str:
+    def reserve_successful_images(
+        self,
+        user_id: str,
+        count: int,
+        limit: int,
+        global_limit: int | None = None,
+    ) -> str:
         normalized_id = self._clean(user_id)
         requested = max(1, int(count or 1))
         normalized_limit = max(0, int(limit or 0))
@@ -572,13 +596,19 @@ class AuthService:
                 if self._clean(item.get("daily_image_date")) == _today_iso()
                 else 0
             )
-            reserved = sum(
+            user_reserved = sum(
                 reserved_count
                 for reserved_user_id, reserved_count in self._image_quota_reservations.values()
                 if reserved_user_id == normalized_id
             )
-            if normalized_limit and used + reserved + requested > normalized_limit:
+            global_reserved = sum(
+                reserved_count
+                for _reserved_user_id, reserved_count in self._image_quota_reservations.values()
+            )
+            if normalized_limit and used + user_reserved + requested > normalized_limit:
                 raise ImageQuotaExceededError(f"今日生图额度已用尽（{normalized_limit} 张）")
+            if global_limit is not None and global_reserved + requested > max(0, int(global_limit)):
+                raise ImageQuotaExceededError("当前账号池剩余总额度不足，请稍后再试")
             reservation_id = uuid.uuid4().hex
             self._image_quota_reservations[reservation_id] = (normalized_id, requested)
             return reservation_id

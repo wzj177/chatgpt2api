@@ -19,7 +19,7 @@
     />
 
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <p class="text-xs text-muted-foreground">共 {{ userKeys.length }} 位用户</p>
+      <p class="text-xs text-muted-foreground">共 {{ userKeysTotal }} 位用户</p>
       <ConsoleSegmentedTabs
         v-model="sortMode"
         class="max-w-xs"
@@ -78,6 +78,16 @@
         </div>
       </div>
     </div>
+    <ListPagination
+      :page="currentPage"
+      :page-size="pageSize"
+      :total-count="userKeysTotal"
+      :page-size-options="pageSizeOptions"
+      unit="位用户"
+      :disabled="userKeysLoading"
+      @update:page="$emit('update:currentPage', $event)"
+      @update:page-size="$emit('update:pageSize', $event)"
+    />
   </div>
 </template>
 
@@ -85,6 +95,7 @@
 import { computed, ref } from 'vue'
 import { Button } from 'nanocat-ui'
 import type { SegmentedValue } from 'nanocat-ui'
+import ListPagination from '@/components/ai/ListPagination.vue'
 import type { UserKey, UserStats } from '@/api/userKeys'
 import ConsoleSegmentedTabs from '@/components/ai/ConsoleSegmentedTabs.vue'
 import MetricStrip from '@/components/ai/MetricStrip.vue'
@@ -98,10 +109,16 @@ const props = defineProps<{
   userStats: UserStats | null
   userKeysLoading: boolean
   userKeyBusy: string
+  currentPage: number
+  pageSize: number
+  pageSizeOptions: number[]
+  userKeysTotal: number
 }>()
 
 defineEmits<{
   load: []
+  'update:currentPage': [value: number]
+  'update:pageSize': [value: number]
   edit: [item: UserKey]
   toggle: [item: UserKey]
   delete: [item: UserKey]
@@ -129,6 +146,12 @@ const summaryItems = computed(() => [
     label: '累计成功生图',
     value: props.userStats?.total_usage ?? 0,
     meta: props.userStats ? `单用户每日上限 ${props.userStats.daily_image_limit || '不限'}` : '',
+  },
+  {
+    key: 'remaining-quota',
+    label: '总剩余额度',
+    value: props.userStats?.total_quota ?? 0,
+    meta: props.userStats?.unknown_quota_count ? '存在未确认额度' : '',
   },
 ])
 </script>

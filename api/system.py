@@ -352,12 +352,16 @@ def create_router(app_version: str) -> APIRouter:
     async def user_stats(authorization: str | None = Header(default=None)):
         require_admin(authorization)
         items = await run_in_threadpool(auth_service.list_keys, role="user")
+        account_stats = await run_in_threadpool(account_service.get_stats)
         return {
             "total_registered": len(items),
             "active_today": sum(1 for item in items if _is_beijing_today(item.get("last_used_at"))),
             "total_usage": sum(int(item.get("usage_count") or 0) for item in items),
             "images_today": sum(int(item.get("daily_image_count") or 0) for item in items),
             "daily_image_limit": config.user_daily_image_limit,
+            "total_quota": account_stats.get("total_quota", 0),
+            "unknown_quota_count": account_stats.get("unknown_quota_count", 0),
+            "unlimited_quota_count": account_stats.get("unlimited_quota_count", 0),
         }
 
     @router.post("/api/images/retention-cleanup", response_model=GalleryCleanupResult)

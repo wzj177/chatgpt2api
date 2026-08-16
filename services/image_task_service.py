@@ -19,6 +19,7 @@ from services.config import DATA_DIR, config
 from services.content_filter import request_text
 from services.genbox_push_service import auto_push_gallery_urls
 from services.auth_service import auth_service
+from services.image_quota_service import reserve_user_image_quota
 from services.image_failure import (
     ImageFailureError,
     ImageGenerationError,
@@ -496,7 +497,7 @@ class ImageTaskService:
         try:
             if str(identity.get("role") or "") == "user":
                 requested = _image_count(payload.get("n"))
-                quota_reservation_id = auth_service.reserve_successful_images(
+                quota_reservation_id = reserve_user_image_quota(
                     owner,
                     requested,
                     config.user_daily_image_limit,
@@ -1088,7 +1089,7 @@ class ImageTaskService:
             submitted_perf = time.perf_counter()
             reservation = self.reserve_submission()
             if str(identity.get("role") or "") == "user":
-                self._quota_reservations[key] = auth_service.reserve_successful_images(
+                self._quota_reservations[key] = reserve_user_image_quota(
                     owner,
                     int(task.get("n") or 1),
                     config.user_daily_image_limit,
