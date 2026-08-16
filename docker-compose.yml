@@ -9,7 +9,7 @@ services:
     ports:
       - "${CHATGPT2API_PORT:-3000}:80"
     volumes:
-      - chatgpt2api-runtime:/app
+ #     - chatgpt2api-runtime:/app
       - ./data:/app/data
       - ./config.json:/app/config.json
     environment:
@@ -20,4 +20,4 @@ services:
       TZ: ${TZ:-Asia/Shanghai}
 
 volumes:
-  chatgpt2api-runtime:
+  #chatgpt2api-runtime:
