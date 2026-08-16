@@ -19,5 +19,5 @@ services:
       CHATGPT2API_THREAD_TOKENS: ${CHATGPT2API_THREAD_TOKENS:-120}
       TZ: ${TZ:-Asia/Shanghai}
 
-volumes:
+#volumes:
   #chatgpt2api-runtime:
