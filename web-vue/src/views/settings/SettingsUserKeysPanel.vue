@@ -33,13 +33,33 @@
     <StateBlock v-else-if="sortedUsers.length === 0" compact dashed>
       暂无用户。公开注册成功后会自动出现在这里。
     </StateBlock>
-    <div v-else class="overflow-hidden rounded-md border border-border">
-      <div
+    <TableShell
+      v-else
+      class="users-table"
+      scroll-mode="contained"
+      hover-rows
+      sticky-header
+      unframed
+      :scroll-class="'max-h-[min(42rem,60dvh)] lg:max-h-none'"
+      table-class="w-full min-w-[900px] table-fixed"
+      head-class="normal-case tracking-normal"
+      style="--table-shell-footer-padding: 12px 0 0"
+    >
+      <template #head>
+        <tr>
+          <th class="w-[27%] py-3 pl-4 pr-5">用户</th>
+          <th class="w-[20%] py-3 pr-5">注册与登录</th>
+          <th class="w-[18%] py-3 pr-5">成功生图</th>
+          <th class="w-[35%] py-3 pr-4 text-right">操作</th>
+        </tr>
+      </template>
+
+      <tr
         v-for="item in sortedUsers"
         :key="item.id"
-        class="grid gap-3 border-b border-border px-4 py-3 last:border-b-0 lg:grid-cols-[minmax(12rem,1.2fr)_minmax(12rem,1.4fr)_minmax(10rem,1fr)_auto] lg:items-center"
+        class="border-b border-border last:border-b-0"
       >
-        <div class="min-w-0">
+        <td class="min-w-0 py-3 pl-4 pr-5 align-top">
           <div class="flex flex-wrap items-center gap-2">
             <p class="truncate text-sm font-medium text-foreground">{{ item.name || '普通用户' }}</p>
             <StateBadge :tone="item.enabled ? 'success' : 'muted'" size="xs" shape="rounded">
@@ -51,49 +71,56 @@
           </div>
           <p class="mt-1 truncate text-xs text-muted-foreground">{{ item.email || item.id }}</p>
           <p v-if="item.phone" class="mt-1 text-xs text-muted-foreground">{{ item.phone }}</p>
-        </div>
+        </td>
 
-        <div class="text-xs text-muted-foreground">
+        <td class="py-3 pr-5 align-top text-xs text-muted-foreground">
           <p>注册：{{ formatDateTime(item.created_at) }}</p>
           <p class="mt-1">最近登录：{{ formatDateTime(item.last_used_at) }}</p>
-        </div>
+        </td>
 
-        <div class="grid grid-cols-2 gap-2 text-xs">
-          <div>
-            <p class="text-muted-foreground">今日成功</p>
-            <p class="mt-1 font-semibold tabular-nums text-foreground">{{ item.daily_image_count || 0 }}</p>
+        <td class="py-3 pr-5 align-top text-xs">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <p class="text-muted-foreground">今日成功</p>
+              <p class="mt-1 font-semibold tabular-nums text-foreground">{{ item.daily_image_count || 0 }}</p>
+            </div>
+            <div>
+              <p class="text-muted-foreground">累计成功</p>
+              <p class="mt-1 font-semibold tabular-nums text-foreground">{{ item.usage_count || 0 }}</p>
+            </div>
           </div>
-          <div>
-            <p class="text-muted-foreground">累计成功</p>
-            <p class="mt-1 font-semibold tabular-nums text-foreground">{{ item.usage_count || 0 }}</p>
-          </div>
-        </div>
+        </td>
 
-        <div class="flex flex-wrap items-center gap-2 lg:justify-end">
-          <Button size="xs" variant="outline" :disabled="userKeyBusy === item.id" @click="$emit('edit', item)">编辑</Button>
-          <Button size="xs" variant="outline" :disabled="userKeyBusy === item.id" @click="$emit('toggle', item)">
-            {{ item.enabled ? '禁用' : '启用' }}
-          </Button>
-          <Button size="xs" variant="outline" root-class="text-rose-600" :disabled="userKeyBusy === item.id" @click="$emit('delete', item)">删除</Button>
-        </div>
-      </div>
-    </div>
-    <ListPagination
-      :page="currentPage"
-      :page-size="pageSize"
-      :total-count="userKeysTotal"
-      :page-size-options="pageSizeOptions"
-      unit="位用户"
-      :disabled="userKeysLoading"
-      @update:page="$emit('update:currentPage', $event)"
-      @update:page-size="$emit('update:pageSize', $event)"
-    />
+        <td class="py-3 pr-4 align-top">
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            <Button size="xs" variant="outline" :disabled="userKeyBusy === item.id" @click="$emit('edit', item)">编辑</Button>
+            <Button size="xs" variant="outline" :disabled="userKeyBusy === item.id" @click="$emit('toggle', item)">
+              {{ item.enabled ? '禁用' : '启用' }}
+            </Button>
+            <Button size="xs" variant="outline" root-class="text-rose-600" :disabled="userKeyBusy === item.id" @click="$emit('delete', item)">删除</Button>
+          </div>
+        </td>
+      </tr>
+
+      <template #footer>
+        <ListPagination
+          :page="currentPage"
+          :page-size="pageSize"
+          :total-count="userKeysTotal"
+          :page-size-options="pageSizeOptions"
+          unit="位用户"
+          :disabled="userKeysLoading"
+          @update:page="$emit('update:currentPage', $event)"
+          @update:page-size="$emit('update:pageSize', $event)"
+        />
+      </template>
+    </TableShell>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Button } from 'nanocat-ui'
+import { Button, TableShell } from 'nanocat-ui'
 import type { SegmentedValue } from 'nanocat-ui'
 import ListPagination from '@/components/ai/ListPagination.vue'
 import type { UserKey, UserStats } from '@/api/userKeys'
