@@ -22,7 +22,7 @@ function createUserKeyForm(): UserKeyForm {
 }
 
 export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptions) {
-  const pageSize = ref(20)
+  const pageSize = ref(10)
   const userKeys = ref<UserKey[]>([])
   const userKeysLoaded = ref(false)
   const userKeysLoading = ref(false)
@@ -180,7 +180,7 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
     userKeys,
     currentPage: userKeysQuery.currentPage,
     pageSize,
-    pageSizeOptions: [20, 50, 100],
+    pageSizeOptions: [5, 10, 20, 50, 100],
     userKeysTotal: userKeysQuery.total,
     userStats,
     userKeysLoaded,
