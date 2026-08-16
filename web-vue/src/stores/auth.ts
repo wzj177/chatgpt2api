@@ -13,7 +13,7 @@ import { getAuthToken } from '@/api/client'
 const AUTH_CACHE_MS = 60000
 
 function emptyCapabilities(): AuthCapabilities {
-  return { admin_console: false, studio: false }
+  return { admin_console: false, studio: false, service_access: false }
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -46,6 +46,7 @@ export const useAuthStore = defineStore('auth', () => {
     capabilities.value = {
       admin_console: status.capabilities.admin_console === true,
       studio: status.capabilities.studio === true,
+      service_access: status.capabilities.service_access === true,
     }
     homeRoute.value = status.home_route
     version.value = status.version

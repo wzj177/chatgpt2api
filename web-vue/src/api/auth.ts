@@ -1,7 +1,7 @@
 import apiClient, { clearAuthToken, setAuthToken } from './client'
 
 export type AuthRole = 'admin' | 'user' | 'unknown'
-export type AuthCapability = 'admin_console' | 'studio'
+export type AuthCapability = 'admin_console' | 'studio' | 'service_access'
 
 export interface AuthSubject {
   id: string
@@ -12,6 +12,7 @@ export interface AuthSubject {
 export interface AuthCapabilities {
   admin_console: boolean
   studio: boolean
+  service_access: boolean
 }
 
 export interface AuthView {

@@ -91,6 +91,7 @@ class AuthService:
             "usage_count": max(0, int(raw.get("usage_count") or 0)),
             "daily_image_date": self._clean(raw.get("daily_image_date")) or None,
             "daily_image_count": max(0, int(raw.get("daily_image_count") or 0)),
+            "login_count": max(0, int(raw.get("login_count") or 0)),
         }
 
     def _load_snapshot(self) -> tuple[list[dict[str, object]], str]:
@@ -223,6 +224,7 @@ class AuthService:
             "phone": item.get("phone"),
             "usage_count": int(item.get("usage_count") or 0),
             "daily_image_count": daily_image_count,
+            "login_count": int(item.get("login_count") or 0),
         }
 
     def list_keys(self, role: AuthRole | None = None) -> list[dict[str, object]]:
@@ -486,6 +488,7 @@ class AuthService:
                 "password_hash": self._password_hash(password),
                 "terms_accepted_at": _now_iso(), "usage_count": 0,
                 "daily_image_date": _today_iso(), "daily_image_count": 0,
+                "login_count": 0,
             }
             result = self.storage.mutate_auth_keys(StorageMutation(upserts=(item,), expected_revision=self._revision))
             self._set_cached_item_locked(item, result.revision)
@@ -504,9 +507,34 @@ class AuthService:
                 next_item = dict(item)
                 next_item["key_hash"] = _hash_key(raw_key)
                 next_item["last_used_at"] = _now_iso()
+                next_item["login_count"] = max(0, int(next_item.get("login_count") or 0)) + 1
                 result = self.storage.mutate_auth_keys(StorageMutation(upserts=(next_item,), expected_revision=self._revision))
                 self._set_cached_item_locked(next_item, result.revision)
                 return self._public_item(next_item), raw_key
+        return None
+
+    def record_login(self, user_id: str) -> dict[str, object] | None:
+        normalized_id = self._clean(user_id)
+        if not normalized_id:
+            return None
+        with self._lock:
+            for attempt in range(_CAS_ATTEMPTS):
+                self._reload_locked()
+                index = self._find_item_index_locked(normalized_id)
+                if index is None:
+                    return None
+                next_item = dict(self._items[index])
+                next_item["login_count"] = max(0, int(next_item.get("login_count") or 0)) + 1
+                try:
+                    result = self.storage.mutate_auth_keys(
+                        StorageMutation(upserts=(next_item,), expected_revision=self._revision)
+                    )
+                except StorageRevisionConflictError:
+                    if attempt + 1 >= _CAS_ATTEMPTS:
+                        raise
+                    continue
+                self._set_cached_item_locked(next_item, result.revision)
+                return self._public_item(next_item)
         return None
 
     def successful_image_usage(self, user_id: str) -> tuple[int, int]:

@@ -22,6 +22,7 @@ class AuthSubject(_StrictModel):
 class AuthCapabilities(_StrictModel):
     admin_console: bool = False
     studio: bool = False
+    service_access: bool = False
 
 
 class AuthView(_StrictModel):
@@ -43,7 +44,7 @@ class AuthView(_StrictModel):
         else:
             if self.subject is not None:
                 raise ValueError("anonymous sessions must not expose a subject")
-            if self.capabilities.admin_console or self.capabilities.studio:
+            if self.capabilities.admin_console or self.capabilities.studio or self.capabilities.service_access:
                 raise ValueError("anonymous sessions must not expose capabilities")
             if self.home_route != "/login":
                 raise ValueError("anonymous sessions must use the login route")
@@ -90,6 +91,7 @@ class UserKeyView(_StrictModel):
     phone: str | None = None
     usage_count: int = 0
     daily_image_count: int = 0
+    login_count: int = 0
 
 
 class UserKeyListView(_StrictModel):

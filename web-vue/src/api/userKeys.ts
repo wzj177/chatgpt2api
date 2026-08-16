@@ -11,6 +11,7 @@ export interface UserKey {
   phone?: string | null
   usage_count: number
   daily_image_count: number
+  login_count: number
 }
 
 export interface UserKeysResponse {

@@ -4,7 +4,7 @@ import { appRoutes, matchedRoutesRequireAuth, resolveLoginRedirect } from '@/rou
 import { useAuthStore } from '@/stores/auth'
 
 function routeCapability(value: unknown): AuthCapability | null {
-  return value === 'admin_console' || value === 'studio' ? value : null
+  return value === 'admin_console' || value === 'studio' || value === 'service_access' ? value : null
 }
 
 const router = createRouter({

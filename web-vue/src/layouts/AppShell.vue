@@ -21,24 +21,8 @@
       >
         <div class="flex h-16 items-center px-5 pt-4 lg:h-20 lg:pt-5">
           <div class="flex min-w-0 items-center">
-            <a
-              href="https://github.com/yukkcat/chatgpt2api"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="shell-sidebar-brand shrink-0 text-foreground transition-colors hover:text-primary"
-              aria-label="GitHub"
-            >
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                class="h-6 w-6"
-                fill="currentColor"
-              >
-                <path d="M12 2C6.477 2 2 6.477 2 12c0 4.419 2.865 8.166 6.839 9.489.5.09.682-.217.682-.483 0-.237-.009-.868-.014-1.703-2.782.604-3.369-1.341-3.369-1.341-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.004.071 1.532 1.031 1.532 1.031.892 1.529 2.341 1.087 2.91.832.091-.647.349-1.087.636-1.337-2.22-.253-4.555-1.11-4.555-4.944 0-1.092.39-1.987 1.029-2.687-.103-.253-.446-1.272.098-2.65 0 0 .84-.269 2.75 1.026A9.564 9.564 0 0 1 12 6.844c.85.004 1.705.115 2.504.337 1.909-1.295 2.748-1.026 2.748-1.026.546 1.378.202 2.397.1 2.65.64.7 1.028 1.595 1.028 2.687 0 3.842-2.338 4.687-4.566 4.936.359.309.678.919.678 1.852 0 1.337-.012 2.418-.012 2.747 0 .268.18.577.688.479A10.002 10.002 0 0 0 22 12c0-5.523-4.477-10-10-10z" />
-              </svg>
-            </a>
             <div class="sidebar-label sidebar-brand-label">
-              <p class="ui-section-title">ChatGPT2API</p>
+              <p class="ui-section-title">丸子生图</p>
             </div>
           </div>
         </div>
@@ -242,7 +226,7 @@
                   </Button>
                 </Tooltip>
               </span>
-              <span class="hidden lg:inline-flex">
+              <span v-if="authStore.hasCapability('service_access')" class="hidden lg:inline-flex">
                 <Tooltip text="交流与服务" placement="bottom">
                   <Button
                     size="sm"
@@ -254,21 +238,21 @@
                   </Button>
                 </Tooltip>
               </span>
-              <span v-if="authStore.isAdmin" class="hidden lg:inline-flex">
-                <Tooltip :text="`查看版本更新，当前 ${currentVersionLabel || '版本未知'}`" placement="bottom">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    :root-class="hasNewVersion
-                      ? '!border-amber-400/70 !bg-amber-50 !text-amber-800 hover:!border-amber-500 hover:!bg-amber-100 hover:!text-amber-900 dark:!border-amber-500/60 dark:!bg-amber-950/35 dark:!text-amber-300 dark:hover:!border-amber-400 dark:hover:!bg-amber-950/55 dark:hover:!text-amber-200'
-                      : ''"
-                    aria-label="查看版本更新"
-                    @click="openUpdateDialog"
-                  >
-                    {{ currentVersionLabel || '版本' }}
-                  </Button>
-                </Tooltip>
-              </span>
+<!--              <span v-if="authStore.isAdmin" class="hidden lg:inline-flex">-->
+<!--                <Tooltip :text="`查看版本更新，当前 ${currentVersionLabel || '版本未知'}`" placement="bottom">-->
+<!--                  <Button-->
+<!--                    size="sm"-->
+<!--                    variant="outline"-->
+<!--                    :root-class="hasNewVersion-->
+<!--                      ? '!border-amber-400/70 !bg-amber-50 !text-amber-800 hover:!border-amber-500 hover:!bg-amber-100 hover:!text-amber-900 dark:!border-amber-500/60 dark:!bg-amber-950/35 dark:!text-amber-300 dark:hover:!border-amber-400 dark:hover:!bg-amber-950/55 dark:hover:!text-amber-200'-->
+<!--                      : ''"-->
+<!--                    aria-label="查看版本更新"-->
+<!--                    @click="openUpdateDialog"-->
+<!--                  >-->
+<!--                    {{ currentVersionLabel || '版本' }}-->
+<!--                  </Button>-->
+<!--                </Tooltip>-->
+<!--              </span>-->
               <span v-if="mobileHeaderMenuItems.length" class="inline-flex lg:hidden">
                 <ActionMenu
                   label="更多"
@@ -497,169 +481,169 @@
             </Button>
           </ModalFooter>
     </ModalShell>
-    <ModalShell
-      :open="isUpdateDialogOpen"
-      :z-index="100"
-      panel-class="flex min-h-0 max-h-[80dvh] flex-col overflow-hidden p-6"
-      close-on-backdrop
-      @close="closeUpdateDialog"
-    >
-      <ModalHeader
-        title="版本更新"
-        subtitle="查看当前版本和更新日志"
-        title-class="ui-subsection-title"
-        :bordered="false"
-        flush
-        @close="closeUpdateDialog"
-      />
+<!--    <ModalShell-->
+<!--      :open="isUpdateDialogOpen"-->
+<!--      :z-index="100"-->
+<!--      panel-class="flex min-h-0 max-h-[80dvh] flex-col overflow-hidden p-6"-->
+<!--      close-on-backdrop-->
+<!--      @close="closeUpdateDialog"-->
+<!--    >-->
+<!--      <ModalHeader-->
+<!--        title="版本更新"-->
+<!--        subtitle="查看当前版本和更新日志"-->
+<!--        title-class="ui-subsection-title"-->
+<!--        :bordered="false"-->
+<!--        flush-->
+<!--        @close="closeUpdateDialog"-->
+<!--      />-->
 
-      <div class="mt-4 grid gap-3 sm:grid-cols-2">
-        <div class="rounded-2xl border border-border bg-background px-4 py-3">
-          <p class="text-xs text-muted-foreground">当前版本</p>
-          <p class="mt-1 text-base font-semibold text-foreground">{{ currentVersionLabel }}</p>
-        </div>
-        <div class="rounded-2xl border border-border bg-background px-4 py-3">
-          <div class="flex items-center justify-between gap-3">
-            <p class="text-xs text-muted-foreground">最新版本</p>
-            <button
-              type="button"
-              class="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:cursor-not-allowed disabled:opacity-60"
-              :disabled="isCheckingUpdate"
-              @click="checkForUpdates(true)"
-            >
-              {{ isCheckingUpdate ? '检查中...' : '检查更新' }}
-            </button>
-          </div>
-          <p
-            class="mt-1 text-base font-semibold"
-            :class="hasNewVersion ? 'text-amber-800 dark:text-amber-300' : 'text-foreground'"
-          >
-            {{ latestVersionLabel }}
-          </p>
-        </div>
-      </div>
+<!--      <div class="mt-4 grid gap-3 sm:grid-cols-2">-->
+<!--        <div class="rounded-2xl border border-border bg-background px-4 py-3">-->
+<!--          <p class="text-xs text-muted-foreground">当前版本</p>-->
+<!--          <p class="mt-1 text-base font-semibold text-foreground">{{ currentVersionLabel }}</p>-->
+<!--        </div>-->
+<!--        <div class="rounded-2xl border border-border bg-background px-4 py-3">-->
+<!--          <div class="flex items-center justify-between gap-3">-->
+<!--            <p class="text-xs text-muted-foreground">最新版本</p>-->
+<!--            <button-->
+<!--              type="button"-->
+<!--              class="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:cursor-not-allowed disabled:opacity-60"-->
+<!--              :disabled="isCheckingUpdate"-->
+<!--              @click="checkForUpdates(true)"-->
+<!--            >-->
+<!--              {{ isCheckingUpdate ? '检查中...' : '检查更新' }}-->
+<!--            </button>-->
+<!--          </div>-->
+<!--          <p-->
+<!--            class="mt-1 text-base font-semibold"-->
+<!--            :class="hasNewVersion ? 'text-amber-800 dark:text-amber-300' : 'text-foreground'"-->
+<!--          >-->
+<!--            {{ latestVersionLabel }}-->
+<!--          </p>-->
+<!--        </div>-->
+<!--      </div>-->
 
-      <div
-        v-if="updateCheckMessage"
-        class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3 text-sm"
-        :class="updateCheckMessageClass"
-      >
-        <span class="min-w-0 flex-1 font-medium">{{ updateCheckMessage }}</span>
-        <MetaChip
-          size="xs"
-          :tone="updateCheckBadgeTone"
-          strong
-          chip-class="shrink-0"
-        >
-          {{ updateCheckBadgeText }}
-        </MetaChip>
-      </div>
+<!--      <div-->
+<!--        v-if="updateCheckMessage"-->
+<!--        class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3 text-sm"-->
+<!--        :class="updateCheckMessageClass"-->
+<!--      >-->
+<!--        <span class="min-w-0 flex-1 font-medium">{{ updateCheckMessage }}</span>-->
+<!--        <MetaChip-->
+<!--          size="xs"-->
+<!--          :tone="updateCheckBadgeTone"-->
+<!--          strong-->
+<!--          chip-class="shrink-0"-->
+<!--        >-->
+<!--          {{ updateCheckBadgeText }}-->
+<!--        </MetaChip>-->
+<!--      </div>-->
 
-      <div class="scrollbar-slim mt-5 min-h-0 flex-1 space-y-5 overflow-y-auto pr-2">
-        <div
-          v-for="release in releaseEntries"
-          :key="`${release.version}-${release.date}`"
-          class="border-l border-border pl-4"
-        >
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="text-sm font-semibold text-foreground">
-              {{ release.version === 'Unreleased' ? '未发布' : release.version }}
-            </span>
-            <span v-if="release.date" class="text-xs text-muted-foreground">{{ release.date }}</span>
-            <MetaChip
-              v-if="normalizeVersionTag(release.version) === latestVersionLabel"
-              size="xs"
-              tone="success"
-              strong
-            >
-              最新
-            </MetaChip>
-            <MetaChip
-              v-if="normalizeVersionTag(release.version) === currentVersionLabel"
-              size="xs"
-              tone="muted"
-            >
-              当前
-            </MetaChip>
-          </div>
-          <div class="mt-2 space-y-1.5">
-            <div
-              v-for="(item, index) in release.items"
-              :key="`${release.version}-${index}`"
-              class="flex items-start gap-2 text-sm leading-6 text-muted-foreground"
-            >
-              <MetaChip
-                size="xs"
-                :tone="releaseItemTone(item.type)"
-                strong
-                chip-class="mt-0.5 shrink-0"
-              >
-                {{ item.type }}
-              </MetaChip>
-              <span class="min-w-0 flex-1 text-foreground/85">
-                <template
-                  v-for="(segment, segmentIndex) in splitReleaseInlineCode(item.content)"
-                  :key="`${release.version}-${index}-${segmentIndex}`"
-                >
-                  <code
-                    v-if="segment.kind === 'code'"
-                    class="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em] text-foreground"
-                  >{{ segment.content }}</code>
-                  <span v-else>{{ segment.content }}</span>
-                </template>
-              </span>
-            </div>
-          </div>
-        </div>
-        <div v-if="!releaseEntries.length" class="rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
-          暂无更新日志。
-        </div>
-      </div>
+<!--      <div class="scrollbar-slim mt-5 min-h-0 flex-1 space-y-5 overflow-y-auto pr-2">-->
+<!--        <div-->
+<!--          v-for="release in releaseEntries"-->
+<!--          :key="`${release.version}-${release.date}`"-->
+<!--          class="border-l border-border pl-4"-->
+<!--        >-->
+<!--          <div class="flex flex-wrap items-center gap-2">-->
+<!--            <span class="text-sm font-semibold text-foreground">-->
+<!--              {{ release.version === 'Unreleased' ? '未发布' : release.version }}-->
+<!--            </span>-->
+<!--            <span v-if="release.date" class="text-xs text-muted-foreground">{{ release.date }}</span>-->
+<!--            <MetaChip-->
+<!--              v-if="normalizeVersionTag(release.version) === latestVersionLabel"-->
+<!--              size="xs"-->
+<!--              tone="success"-->
+<!--              strong-->
+<!--            >-->
+<!--              最新-->
+<!--            </MetaChip>-->
+<!--            <MetaChip-->
+<!--              v-if="normalizeVersionTag(release.version) === currentVersionLabel"-->
+<!--              size="xs"-->
+<!--              tone="muted"-->
+<!--            >-->
+<!--              当前-->
+<!--            </MetaChip>-->
+<!--          </div>-->
+<!--          <div class="mt-2 space-y-1.5">-->
+<!--            <div-->
+<!--              v-for="(item, index) in release.items"-->
+<!--              :key="`${release.version}-${index}`"-->
+<!--              class="flex items-start gap-2 text-sm leading-6 text-muted-foreground"-->
+<!--            >-->
+<!--              <MetaChip-->
+<!--                size="xs"-->
+<!--                :tone="releaseItemTone(item.type)"-->
+<!--                strong-->
+<!--                chip-class="mt-0.5 shrink-0"-->
+<!--              >-->
+<!--                {{ item.type }}-->
+<!--              </MetaChip>-->
+<!--              <span class="min-w-0 flex-1 text-foreground/85">-->
+<!--                <template-->
+<!--                  v-for="(segment, segmentIndex) in splitReleaseInlineCode(item.content)"-->
+<!--                  :key="`${release.version}-${index}-${segmentIndex}`"-->
+<!--                >-->
+<!--                  <code-->
+<!--                    v-if="segment.kind === 'code'"-->
+<!--                    class="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em] text-foreground"-->
+<!--                  >{{ segment.content }}</code>-->
+<!--                  <span v-else>{{ segment.content }}</span>-->
+<!--                </template>-->
+<!--              </span>-->
+<!--            </div>-->
+<!--          </div>-->
+<!--        </div>-->
+<!--        <div v-if="!releaseEntries.length" class="rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">-->
+<!--          暂无更新日志。-->
+<!--        </div>-->
+<!--      </div>-->
 
-      <ModalFooter class="mt-6" :bordered="false" flush>
-        <Button
-          size="xs"
-          variant="outline"
-          @click="openReleasePage"
-        >
-          打开发布页
-        </Button>
-        <Button
-          size="xs"
-          variant="primary"
-          root-class="min-w-14 justify-center"
-          @click="closeUpdateDialog"
-        >
-          知道了
-        </Button>
-        <Button
-          v-if="canStartUpdate"
-          size="xs"
-          variant="primary"
-          :disabled="updateProgressState.busy || isUpdateConfirming"
-          @click="startUpdate"
-        >
-          {{ isUpdateConfirming ? '等待确认' : '立即更新' }}
-        </Button>
-      </ModalFooter>
-    </ModalShell>
+<!--      <ModalFooter class="mt-6" :bordered="false" flush>-->
+<!--        <Button-->
+<!--          size="xs"-->
+<!--          variant="outline"-->
+<!--          @click="openReleasePage"-->
+<!--        >-->
+<!--          打开发布页-->
+<!--        </Button>-->
+<!--        <Button-->
+<!--          size="xs"-->
+<!--          variant="primary"-->
+<!--          root-class="min-w-14 justify-center"-->
+<!--          @click="closeUpdateDialog"-->
+<!--        >-->
+<!--          知道了-->
+<!--        </Button>-->
+<!--        <Button-->
+<!--          v-if="canStartUpdate"-->
+<!--          size="xs"-->
+<!--          variant="primary"-->
+<!--          :disabled="updateProgressState.busy || isUpdateConfirming"-->
+<!--          @click="startUpdate"-->
+<!--        >-->
+<!--          {{ isUpdateConfirming ? '等待确认' : '立即更新' }}-->
+<!--        </Button>-->
+<!--      </ModalFooter>-->
+<!--    </ModalShell>-->
 
-    <OperationProgressDrawer
-      v-if="updateProgressState.open"
-      :open="updateProgressState.open"
-      :title="updateProgressState.title"
-      :subtitle="updateProgressState.subtitle"
-      :total="updateProgressState.total"
-      :current="updateProgressState.current"
-      :status-label="updateProgressState.statusLabel"
-      :error="updateProgressState.error"
-      :busy="updateProgressState.busy"
-      :close-disabled="updateProgressState.busy"
-      :tone="updateProgressState.tone"
-      :events="updateProgressState.events"
-      :summary-items="updateProgressSummary"
-      @close="closeUpdateProgress"
-    />
+<!--    <OperationProgressDrawer-->
+<!--      v-if="updateProgressState.open"-->
+<!--      :open="updateProgressState.open"-->
+<!--      :title="updateProgressState.title"-->
+<!--      :subtitle="updateProgressState.subtitle"-->
+<!--      :total="updateProgressState.total"-->
+<!--      :current="updateProgressState.current"-->
+<!--      :status-label="updateProgressState.statusLabel"-->
+<!--      :error="updateProgressState.error"-->
+<!--      :busy="updateProgressState.busy"-->
+<!--      :close-disabled="updateProgressState.busy"-->
+<!--      :tone="updateProgressState.tone"-->
+<!--      :events="updateProgressState.events"-->
+<!--      :summary-items="updateProgressSummary"-->
+<!--      @close="closeUpdateProgress"-->
+<!--    />-->
   </div>
 </template>
 
@@ -684,7 +668,7 @@ import MetaChip from '@/components/ai/MetaChip.vue'
 import ModalFooter from '@/components/ai/ModalFooter.vue'
 import ModalHeader from '@/components/ai/ModalHeader.vue'
 import ModalShell from '@/components/ai/ModalShell.vue'
-import OperationProgressDrawer from '@/components/ai/OperationProgressDrawer.vue'
+// import OperationProgressDrawer from '@/components/ai/OperationProgressDrawer.vue'
 import PageLoadingState from '@/components/ai/PageLoadingState.vue'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { useToast } from '@/composables/useToast'
@@ -692,9 +676,9 @@ import {
   getBooleanPreference,
   getStringPreference,
   preferenceKeys,
-  removePreference,
+  // removePreference,
   setBooleanPreference,
-  setStringPreference,
+  // setStringPreference,
 } from '@/lib/preferences'
 import { writeClipboardText } from '@/lib/clipboard'
 import { focusFirstWithin, focusRefTarget, trapFocusWithin } from '@/lib/focusLoop'
@@ -702,7 +686,7 @@ import { applyThemeMode, getStoredThemeMode, setStoredThemeMode, type ThemeMode 
 import {
   normalizeVersionTag,
   parseChangelog,
-  splitReleaseInlineCode,
+  // splitReleaseInlineCode,
   type ReleaseInfo,
 } from '@/lib/release'
 import type { UpdateTaskResponse, VersionCheckResponse } from '@/types/api'
@@ -724,7 +708,7 @@ const isApiInfoOpen = ref(false)
 const isServiceDialogOpen = ref(false)
 const isUpdateDialogOpen = ref(false)
 const isCheckingUpdate = ref(false)
-const isUpdateConfirming = ref(false)
+// const isUpdateConfirming = ref(false)
 const currentVersionTag = ref(normalizeVersionTag(localVersion))
 const updateStatus = ref<VersionCheckResponse | null>(null)
 const updateRequestError = ref('')
@@ -899,55 +883,55 @@ const navIconClassMap = computed<Record<string, string>>(() => {
 
 const apiSdkUrl = computed(() => `${apiBaseUrl.value}/v1`)
 const apiKeyDisplay = computed(() => currentAuthToken.value || '未登录')
-const currentVersionLabel = computed(() => normalizeVersionTag(
-  updateStatus.value?.current_tag || currentVersionTag.value || '',
-))
-const latestVersionLabel = computed(() => normalizeVersionTag(
-  updateStatus.value?.latest_tag || currentVersionTag.value || '',
-))
-const hasNewVersion = computed(() => updateStatus.value?.update_available === true)
-const canStartUpdate = computed(() => updateStatus.value?.can_update === true && !updateProgressState.busy)
-const updateProgressSummary = computed(() => [
-  {
-    key: 'current-version',
-    label: '当前版本',
-    value: currentVersionLabel.value || '未知',
-  },
-  {
-    key: 'target-version',
-    label: '目标版本',
-    value: updateTargetTag.value || latestVersionLabel.value || '未知',
-  },
-])
-const updateCheckMessage = computed(() => {
-  if (isCheckingUpdate.value) return updateCheckingMessage
-  return updateRequestError.value || updateStatus.value?.status_message || ''
-})
-const updateCheckMessageClass = computed(() => {
-  if (isCheckingUpdate.value) return 'border-cyan-500/35 bg-cyan-500/10 text-cyan-700'
-  if (updateRequestError.value || updateStatus.value?.tone === 'warning') return 'border-amber-500/40 bg-amber-500/10 text-amber-700'
-  if (updateStatus.value?.tone === 'success') return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
-  return 'border-border bg-muted/40 text-muted-foreground'
-})
-const updateCheckBadgeText = computed(() => {
-  if (isCheckingUpdate.value) return '检查中'
-  if (updateRequestError.value) return '请求失败'
-  return updateStatus.value?.status_label || '未检查'
-})
-const updateCheckBadgeTone = computed(() => {
-  if (isCheckingUpdate.value) return 'info'
-  if (updateRequestError.value || updateStatus.value?.tone === 'warning') return 'warning'
-  if (updateStatus.value?.tone === 'success') return 'success'
-  return 'muted'
-})
-function releaseItemTone(type: string): 'default' | 'muted' | 'success' | 'warning' | 'danger' | 'info' {
-  const value = String(type || '').trim()
-  if (['新增', '添加', 'Added'].includes(value)) return 'success'
-  if (['优化', '改进', 'Changed', 'Improved'].includes(value)) return 'info'
-  if (['修复', '修正', 'Fixed'].includes(value)) return 'warning'
-  if (['移除', '删除', '废弃', 'Removed', 'Deprecated'].includes(value)) return 'danger'
-  return 'muted'
-}
+// const currentVersionLabel = computed(() => normalizeVersionTag(
+//   updateStatus.value?.current_tag || currentVersionTag.value || '',
+// ))
+// const latestVersionLabel = computed(() => normalizeVersionTag(
+//   updateStatus.value?.latest_tag || currentVersionTag.value || '',
+// ))
+// const hasNewVersion = computed(() => updateStatus.value?.update_available === true)
+// const canStartUpdate = computed(() => updateStatus.value?.can_update === true && !updateProgressState.busy)
+// const updateProgressSummary = computed(() => [
+//   {
+//     key: 'current-version',
+//     label: '当前版本',
+//     value: currentVersionLabel.value || '未知',
+//   },
+//   {
+//     key: 'target-version',
+//     label: '目标版本',
+//     value: updateTargetTag.value || latestVersionLabel.value || '未知',
+//   },
+// ])
+// const updateCheckMessage = computed(() => {
+//   if (isCheckingUpdate.value) return updateCheckingMessage
+//   return updateRequestError.value || updateStatus.value?.status_message || ''
+// })
+// const updateCheckMessageClass = computed(() => {
+//   if (isCheckingUpdate.value) return 'border-cyan-500/35 bg-cyan-500/10 text-cyan-700'
+//   if (updateRequestError.value || updateStatus.value?.tone === 'warning') return 'border-amber-500/40 bg-amber-500/10 text-amber-700'
+//   if (updateStatus.value?.tone === 'success') return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
+//   return 'border-border bg-muted/40 text-muted-foreground'
+// })
+// const updateCheckBadgeText = computed(() => {
+//   if (isCheckingUpdate.value) return '检查中'
+//   if (updateRequestError.value) return '请求失败'
+//   return updateStatus.value?.status_label || '未检查'
+// })
+// const updateCheckBadgeTone = computed(() => {
+//   if (isCheckingUpdate.value) return 'info'
+//   if (updateRequestError.value || updateStatus.value?.tone === 'warning') return 'warning'
+//   if (updateStatus.value?.tone === 'success') return 'success'
+//   return 'muted'
+// })
+// function releaseItemTone(type: string): 'default' | 'muted' | 'success' | 'warning' | 'danger' | 'info' {
+//   const value = String(type || '').trim()
+//   if (['新增', '添加', 'Added'].includes(value)) return 'success'
+//   if (['优化', '改进', 'Changed', 'Improved'].includes(value)) return 'info'
+//   if (['修复', '修正', 'Fixed'].includes(value)) return 'warning'
+//   if (['移除', '删除', '废弃', 'Removed', 'Deprecated'].includes(value)) return 'danger'
+//   return 'muted'
+// }
 const canvasHref = computed(() => {
   const canvas = thirdPartyApps.value?.infinite_canvas
   const token = getAuthToken()
@@ -990,16 +974,18 @@ const mobileHeaderMenuItems = computed<ActionMenuItem[]>(() => {
       { key: 'updates', label: '版本更新' },
     )
   }
-  items.push({ key: 'services', label: '交流与服务', dividerBefore: items.length > 0 })
+  if (authStore.hasCapability('service_access')) {
+    items.push({ key: 'services', label: '交流与服务', dividerBefore: items.length > 0 })
+  }
   return items
 })
 const routePendingText = computed(() => `正在加载${currentPageTitle.value}`)
 let systemThemeMedia: MediaQueryList | null = null
 let viewportMedia: MediaQueryList | null = null
 const prefetchedRoutePaths = new Set<string>()
-const defaultReleasePageUrl = 'https://github.com/yukkcat/chatgpt2api/releases'
-const releasePageUrl = computed(() => updateStatus.value?.release_url || defaultReleasePageUrl)
-const updateCheckingMessage = '正在检查云端版本...'
+// const defaultReleasePageUrl = 'https://github.com/yukkcat/chatgpt2api/releases'
+// const releasePageUrl = computed(() => updateStatus.value?.release_url || defaultReleasePageUrl)
+// const updateCheckingMessage = '正在检查云端版本...'
 const updateTaskPollIntervalMs = 1000
 let updateTaskPollTimer: number | null = null
 let updateReloadScheduled = false
@@ -1189,18 +1175,18 @@ function openUpdateDialog() {
   isUpdateDialogOpen.value = true
 }
 
-function openReleasePage() {
-  window.open(releasePageUrl.value, '_blank', 'noopener,noreferrer')
-  closeUpdateDialog()
-}
+// function openReleasePage() {
+//   window.open(releasePageUrl.value, '_blank', 'noopener,noreferrer')
+//   closeUpdateDialog()
+// }
 
-function closeUpdateDialog() {
-  const latestTag = updateStatus.value?.latest_tag || ''
-  if (updateStatus.value?.update_available && latestTag) {
-    setStringPreference(preferenceKeys.updateDismissedTag, latestTag)
-  }
-  isUpdateDialogOpen.value = false
-}
+// function closeUpdateDialog() {
+//   const latestTag = updateStatus.value?.latest_tag || ''
+//   if (updateStatus.value?.update_available && latestTag) {
+//     setStringPreference(preferenceKeys.updateDismissedTag, latestTag)
+//   }
+//   isUpdateDialogOpen.value = false
+// }
 
 function clearUpdateTaskPollTimer() {
   if (updateTaskPollTimer === null) return
@@ -1213,7 +1199,7 @@ function applyUpdateTask(task: UpdateTaskResponse, open: boolean) {
   updateTargetTag.value = normalizeVersionTag(task.latest_tag || updateTargetTag.value)
   currentVersionTag.value = normalizeVersionTag(task.current_tag || currentVersionTag.value)
   updateProgressState.open = open
-  updateProgressState.title = task.busy ? '正在更新 ChatGPT2API' : 'ChatGPT2API 更新'
+  updateProgressState.title = task.busy ? '正在更新 丸子生图' : '丸子生图 更新'
   updateProgressState.subtitle = task.latest_tag ? `目标版本 ${normalizeVersionTag(task.latest_tag)}` : ''
   updateProgressState.total = task.total
   updateProgressState.current = task.current
@@ -1238,40 +1224,40 @@ function scheduleUpdateTaskPoll() {
   }, updateTaskPollIntervalMs)
 }
 
-async function startUpdate() {
-  if (isUpdateConfirming.value || !canStartUpdate.value) return
-  const targetTag = normalizeVersionTag(updateStatus.value?.latest_tag || '')
-  if (!targetTag) return
-
-  isUpdateConfirming.value = true
-  let confirmed = false
-  try {
-    confirmed = await confirmDialog.ask({
-      title: '确认更新',
-      message: `检测到新版本 ${targetTag}，当前版本为 ${currentVersionLabel.value || '版本未知'}。确认后将下载并安装更新，服务会自动重启，通常需要 30 秒至 2 分钟。`,
-      confirmText: '立即更新',
-      cancelText: '取消',
-    })
-  } finally {
-    isUpdateConfirming.value = false
-  }
-  if (!confirmed) return
-
-  clearUpdateTaskPollTimer()
-  updateTargetTag.value = targetTag
-  isUpdateDialogOpen.value = false
-
-  try {
-    const task = await versionApi.startUpdate()
-    setStringPreference(preferenceKeys.updateActiveTaskId, task.task_id)
-    applyUpdateTask(task, true)
-    if (task.busy) scheduleUpdateTaskPoll()
-    else await checkForUpdates(false)
-  } catch (error) {
-    const message = error instanceof Error ? error.message : '在线更新失败，请稍后重试。'
-    toast.error(message)
-  }
-}
+// async function startUpdate() {
+//   if (isUpdateConfirming.value || !canStartUpdate.value) return
+//   const targetTag = normalizeVersionTag(updateStatus.value?.latest_tag || '')
+//   if (!targetTag) return
+//
+//   isUpdateConfirming.value = true
+//   let confirmed = false
+//   try {
+//     confirmed = await confirmDialog.ask({
+//       title: '确认更新',
+//       message: `检测到新版本 ${targetTag}，当前版本为 ${currentVersionLabel.value || '版本未知'}。确认后将下载并安装更新，服务会自动重启，通常需要 30 秒至 2 分钟。`,
+//       confirmText: '立即更新',
+//       cancelText: '取消',
+//     })
+//   } finally {
+//     isUpdateConfirming.value = false
+//   }
+//   if (!confirmed) return
+//
+//   clearUpdateTaskPollTimer()
+//   updateTargetTag.value = targetTag
+//   isUpdateDialogOpen.value = false
+//
+//   try {
+//     const task = await versionApi.startUpdate()
+//     setStringPreference(preferenceKeys.updateActiveTaskId, task.task_id)
+//     applyUpdateTask(task, true)
+//     if (task.busy) scheduleUpdateTaskPoll()
+//     else await checkForUpdates(false)
+//   } catch (error) {
+//     const message = error instanceof Error ? error.message : '在线更新失败，请稍后重试。'
+//     toast.error(message)
+//   }
+// }
 
 async function pollUpdateTask() {
   try {
@@ -1300,11 +1286,11 @@ async function pollUpdateTask() {
   }
 }
 
-function closeUpdateProgress() {
-  if (!updateProgressRuntime.close()) return
-  clearUpdateTaskPollTimer()
-  removePreference(preferenceKeys.updateActiveTaskId)
-}
+// function closeUpdateProgress() {
+//   if (!updateProgressRuntime.close()) return
+//   clearUpdateTaskPollTimer()
+//   removePreference(preferenceKeys.updateActiveTaskId)
+// }
 
 async function checkForUpdates(showMessage = true, openAvailable = false) {
   if (isCheckingUpdate.value) return

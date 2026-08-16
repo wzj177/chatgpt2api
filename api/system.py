@@ -63,7 +63,7 @@ from services.image_service import (
     storage_stats,
 )
 from services.dashboard_view import build_dashboard_view
-from services.image_storage_service import ImageStorageError, image_storage_service, verify_image_signature
+from services.image_storage_service import ImageStorageError, image_storage_service
 from services.image_tags_service import set_tags
 from services.log_service import log_service
 from services.model_catalog_service import get_model_catalog
@@ -211,6 +211,9 @@ def create_router(app_version: str) -> APIRouter:
             identity, access_token = result
         else:
             identity = require_identity(authorization)
+            recorded_identity = auth_service.record_login(str(identity.get("id") or ""))
+            if recorded_identity is not None:
+                identity = recorded_identity
         view = build_auth_view(app_version, identity)
         return view.model_copy(update={"access_token": access_token})
 
@@ -365,13 +368,13 @@ def create_router(app_version: str) -> APIRouter:
 
     @router.get("/images/{image_path:path}", include_in_schema=False)
     async def get_image(image_path: str, owner: str = "", expires: int = 0, signature: str = ""):
-        if not verify_image_signature(image_path, owner, expires, signature) or not image_storage_service.is_owned_by(image_path, owner):
+        if not image_storage_service.can_access_signed(image_path, owner, expires, signature):
             raise HTTPException(status_code=404, detail="image not found")
         return get_image_response(image_path)
 
     @router.get("/image-thumbnails/{image_path:path}", include_in_schema=False)
     async def get_image_thumbnail(image_path: str, owner: str = "", expires: int = 0, signature: str = ""):
-        if not verify_image_signature(image_path, owner, expires, signature) or not image_storage_service.is_owned_by(image_path, owner):
+        if not image_storage_service.can_access_signed(image_path, owner, expires, signature):
             raise HTTPException(status_code=404, detail="image not found")
         return get_thumbnail_response(image_path)
 

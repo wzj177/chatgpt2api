@@ -3,7 +3,7 @@
     <div class="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md items-center">
       <section class="w-full rounded-lg border border-border bg-card p-6 shadow-sm sm:p-8">
         <header class="text-center">
-          <h1 class="text-2xl font-semibold text-foreground">ChatGPT2API</h1>
+          <h1 class="text-2xl font-semibold text-foreground">丸子生图</h1>
           <p class="mt-2 text-sm text-muted-foreground">
             {{ mode === 'register' ? '创建生图用户账号' : mode === 'admin' ? '管理员控制台登录' : '用户登录' }}
           </p>

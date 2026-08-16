@@ -2,16 +2,17 @@
 
 状态：当前
 
-本项目的发布镜像默认是 `ghcr.io/yukkcat/chatgpt2api:latest`。标准 Compose 将服务暴露在 `3000` 端口，使用 `chatgpt2api-runtime` 命名卷保存可更新的应用运行目录，并单独挂载本地 `data/` 和 `config.json`。运行时配置和数据不应提交到 Git。
+二开版本的标准 Compose 从当前仓库的 `Dockerfile` 构建镜像，默认镜像名为 `chatgpt2api:custom`。Compose 将服务暴露在 `3000` 端口，使用 `chatgpt2api-runtime` 命名卷保存可更新的应用运行目录，并单独挂载本地 `data/` 和 `config.json`。运行时配置和数据不应提交到 Git。
 
 ## Docker 部署
 
 ```bash
-git clone https://github.com/yukkcat/chatgpt2api.git
+git clone https://github.com/wzj177/chatgpt2api.git
 cd chatgpt2api
 cp .env.example .env
 # 将 .env 中的 CHATGPT2API_AUTH_KEY=your_secret_key_here 替换为私有密钥。
 test -f config.json || printf '{}\n' > config.json
+docker compose build
 docker compose up -d
 ```
 
@@ -128,7 +129,7 @@ docker compose -f docker-compose.yml -f docker-compose.postgres.yml exec -T post
 
 ```bash
 git pull --ff-only
-docker compose pull
+docker compose build
 docker compose up -d
 ```
 
@@ -136,10 +137,10 @@ docker compose up -d
 
 ### 命令行升级
 
-镜像部署升级：
+源码构建镜像升级：
 
 ```bash
-docker compose pull
+docker compose build
 docker compose up -d
 ```
 
@@ -150,7 +151,7 @@ docker compose -f docker-compose.yml -f docker-compose.postgres.yml pull
 docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d
 ```
 
-镜像部署固定或回退版本时，在 `.env` 设置 `CHATGPT2API_IMAGE=ghcr.io/yukkcat/chatgpt2api:<tag>`，再执行对应的 `pull` 与 `up`。镜像版本变化后，入口脚本会用该镜像刷新受管运行目录；Git 检出标签只影响源码运行，不会改变 Compose 使用的镜像版本。升级后检查：
+如需使用你发布到 GHCR 的自有镜像，可在 `.env` 设置 `CHATGPT2API_IMAGE=ghcr.io/wzj177/chatgpt2api:<tag>`，并按自有镜像流程执行 `pull` 与 `up`。默认二开部署使用源码构建；升级后检查：
 
 ```bash
 docker compose ps

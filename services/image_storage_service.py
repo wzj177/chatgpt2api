@@ -6,6 +6,7 @@ import io
 import time
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
+from datetime import timedelta
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from threading import Lock
 from typing import Iterator
@@ -20,14 +21,13 @@ from services.config import DATA_DIR, config
 from services.image_failure import ImageFailureError, image_failure
 from services.json_file import read_json_object, write_json_file
 from services.storage.file_lock import interprocess_lock
-from utils.timezone import beijing_datetime_from_timestamp, beijing_now, beijing_now_str
+from utils.timezone import beijing_datetime_from_timestamp, beijing_now, beijing_now_str, parse_to_beijing_naive
 
 IMAGE_INDEX_FILE = DATA_DIR / "image_index.json"
 IMAGE_INDEX_LOCK = Lock()
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 IMAGE_SYNC_MERGE_BATCH_SIZE = 64
 IMAGE_MUTATION_BATCH_SIZE = 16
-IMAGE_URL_TTL_SECONDS = 3600
 IMAGE_URL_SECRET_FILE = DATA_DIR / ".image-url-secret"
 
 
@@ -78,20 +78,28 @@ def _image_url_secret() -> bytes:
     return value.encode("utf-8")
 
 
+def _image_url_ttl_seconds() -> int:
+    return max(3600, max(1, int(config.image_retention_hours)) * 3600)
+
+
 def signed_image_query(rel: str, owner_id: str, *, expires_at: int | None = None) -> str:
     safe_rel = normalize_image_relative_path(rel)
-    expires = int(expires_at or (time.time() + IMAGE_URL_TTL_SECONDS))
+    expires = int(expires_at or (time.time() + _image_url_ttl_seconds()))
     owner = _clean(owner_id) or "anonymous"
     payload = f"{safe_rel}\n{owner}\n{expires}".encode("utf-8")
     signature = hmac.new(_image_url_secret(), payload, hashlib.sha256).hexdigest()
     return f"owner={quote(owner)}&expires={expires}&signature={signature}"
 
 
+def image_signature_matches(rel: str, owner_id: str, expires_at: int, signature: str) -> bool:
+    expected = signed_image_query(rel, owner_id, expires_at=expires_at).rsplit("signature=", 1)[1]
+    return hmac.compare_digest(expected, _clean(signature))
+
+
 def verify_image_signature(rel: str, owner_id: str, expires_at: int, signature: str) -> bool:
     if expires_at < int(time.time()):
         return False
-    expected = signed_image_query(rel, owner_id, expires_at=expires_at).rsplit("signature=", 1)[1]
-    return hmac.compare_digest(expected, _clean(signature))
+    return image_signature_matches(rel, owner_id, expires_at, signature)
 
 
 def _raise_if_save_deadline_elapsed(deadline_monotonic: float | None) -> None:
@@ -512,6 +520,38 @@ class ImageStorageService:
 
     def is_owned_by(self, rel: str, owner_id: str) -> bool:
         return bool(_clean(owner_id)) and self.owner_id(rel) == _clean(owner_id)
+
+    def _retained_locked(self, rel: str) -> bool:
+        safe_rel = normalize_image_relative_path(rel)
+        item = self._load_clean_index().get(safe_rel)
+        if not isinstance(item, dict):
+            return False
+        created = parse_to_beijing_naive(item.get("created_at"))
+        if created is None:
+            try:
+                created = beijing_datetime_from_timestamp(
+                    image_local_path(safe_rel, require_file=True).stat().st_mtime
+                ).replace(tzinfo=None)
+            except Exception:
+                parts = safe_rel.split("/")
+                if len(parts) < 3:
+                    return False
+                created = parse_to_beijing_naive("-".join(parts[:3]), formats=("%Y-%m-%d",))
+                if created is None:
+                    return False
+        expires_at = created + timedelta(hours=max(1, int(config.image_retention_hours)))
+        return expires_at > beijing_now().replace(tzinfo=None)
+
+    def can_access_signed(self, rel: str, owner_id: str, expires_at: int, signature: str) -> bool:
+        owner = _clean(owner_id)
+        if not owner:
+            return False
+        if not image_signature_matches(rel, owner, expires_at, signature):
+            return False
+        if not self.is_owned_by(rel, owner):
+            return False
+        with self._index_guard():
+            return self._retained_locked(rel)
 
     def get_bytes(self, rel: str) -> bytes:
         safe_rel = normalize_image_relative_path(rel)
