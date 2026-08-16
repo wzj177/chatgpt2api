@@ -1,6 +1,12 @@
 <template>
-  <div class="space-y-6">
-    <PagePanel class="users-page-panel space-y-5">
+  <div
+    class="space-y-6"
+    :class="{ 'lg:flex lg:min-h-0 lg:flex-1 lg:flex-col': isWorkspaceLayout }"
+  >
+    <PagePanel
+      class="users-page-panel flex flex-col gap-4"
+      :class="{ 'min-h-0 flex-1': isWorkspaceLayout }"
+    >
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p class="ui-section-title">用户管理</p>
@@ -9,6 +15,7 @@
       </div>
 
       <SettingsUserKeysPanel
+        :workspace-layout="isWorkspaceLayout"
         :user-keys="userKeys"
         :user-stats="userStats"
         :user-keys-loading="userKeysLoading"
@@ -39,11 +46,13 @@
 import PagePanel from '@/components/ai/PagePanel.vue'
 import SettingsUserKeyModals from '@/views/settings/SettingsUserKeyModals.vue'
 import SettingsUserKeysPanel from '@/views/settings/SettingsUserKeysPanel.vue'
+import { useListLayoutPreference } from '@/composables/useListLayoutPreference'
 import { usePageRuntime } from '@/composables/usePageRuntime'
 import { useSettingsUserKeysRuntime } from '@/views/settings/settingsUserKeysRuntime'
 
 defineOptions({ name: 'Users' })
 
+const { isWorkspaceLayout } = useListLayoutPreference()
 const pageRuntime = usePageRuntime('users')
 const userKeysRuntime = useSettingsUserKeysRuntime({
   runtime: pageRuntime,

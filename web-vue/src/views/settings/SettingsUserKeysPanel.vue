@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-4">
+  <div class="flex min-h-0 flex-col space-y-4">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
         <p class="ui-section-title">用户管理</p>
@@ -36,11 +36,12 @@
     <TableShell
       v-else
       class="users-table"
-      scroll-mode="contained"
+      :fill="workspaceLayout"
+      :scroll-mode="workspaceLayout ? 'contained' : 'page'"
       hover-rows
       sticky-header
       unframed
-      :scroll-class="'max-h-[min(42rem,60dvh)] lg:max-h-none'"
+      :scroll-class="workspaceLayout ? 'max-h-[min(42rem,60dvh)] lg:max-h-none' : ''"
       table-class="w-full min-w-[900px] table-fixed"
       head-class="normal-case tracking-normal"
       style="--table-shell-footer-padding: 12px 0 0"
@@ -136,6 +137,7 @@ const props = defineProps<{
   userStats: UserStats | null
   userKeysLoading: boolean
   userKeyBusy: string
+  workspaceLayout: boolean
   currentPage: number
   pageSize: number
   pageSizeOptions: number[]
