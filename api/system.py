@@ -274,6 +274,7 @@ def create_router(app_version: str) -> APIRouter:
 
         redirect_uri = str(request.url_for("linuxdo_oauth_callback"))
         if error:
+            logger.info({"event": "linuxdo_oauth_provider_cancelled"})
             return RedirectResponse(f"/#/login?oauth_error=授权被取消")
         try:
             exchange_code = await run_in_threadpool(
@@ -282,7 +283,12 @@ def create_router(app_version: str) -> APIRouter:
                 state=state,
                 redirect_uri=redirect_uri,
             )
-        except LinuxDoOAuthError:
+        except LinuxDoOAuthError as exc:
+            logger.warning({
+                "event": "linuxdo_oauth_callback_redirect_failed",
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+            })
             return RedirectResponse("/#/login?oauth_error=第三方登录失败")
         return RedirectResponse(f"/#/login?oauth_code={exchange_code}")
 
