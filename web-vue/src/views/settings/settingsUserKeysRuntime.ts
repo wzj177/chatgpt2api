@@ -3,7 +3,7 @@ import { ref, watch } from 'vue'
 import { userKeysApi, type UserKey, type UserStats } from '@/api/userKeys'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import type { usePageRuntime } from '@/composables/usePageRuntime'
-import { usePageQuery, usePagedQuery } from '@/composables/usePageQuery'
+import { usePageDebouncedAction, usePageQuery, usePagedQuery } from '@/composables/usePageQuery'
 import { useToast } from '@/composables/useToast'
 import { errorMessage } from '@/lib/errorMessage'
 
@@ -24,6 +24,7 @@ function createUserKeyForm(): UserKeyForm {
 export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptions) {
   const pageSize = ref(10)
   const registrationSource = ref('all')
+  const userSearch = ref('')
   const userKeys = ref<UserKey[]>([])
   const userKeysLoaded = ref(false)
   const userKeysLoading = ref(false)
@@ -55,6 +56,7 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
         page,
         page_size: size,
         registration_source: registrationSource.value,
+        keyword: userSearch.value.trim(),
       }
       console.info('[用户管理] 请求用户列表', params)
       return userKeysApi.list(params)
@@ -82,6 +84,15 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
   watch(registrationSource, (value, previousValue) => {
     console.info('[用户管理] 注册来源已切换', { previousValue, value })
     void userKeysQuery.resetAndLoad()
+  })
+  const searchDebounce = usePageDebouncedAction({
+    runtime: options.runtime,
+    key: `${options.requestKey}:search`,
+    delayMs: 250,
+    action: () => userKeysQuery.resetAndLoad(),
+  })
+  watch(userSearch, () => {
+    searchDebounce.schedule()
   })
 
   function resetUserKeyForm() {
@@ -205,6 +216,7 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
 
   return {
     userKeys,
+    userSearch,
     currentPage: userKeysQuery.currentPage,
     pageSize,
     registrationSource,

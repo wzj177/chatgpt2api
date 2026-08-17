@@ -57,7 +57,7 @@ export interface UserStats {
 }
 
 export const userKeysApi = {
-  list: (params?: { page?: number; page_size?: number; registration_source?: string }) =>
+  list: (params?: { page?: number; page_size?: number; registration_source?: string; keyword?: string }) =>
     apiClient.get<never, UserKeysResponse>('/api/auth/users', { params: params || undefined }),
   stats: () => apiClient.get<never, UserStats>('/api/auth/users/stats'),
 

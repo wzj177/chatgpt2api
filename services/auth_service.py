@@ -261,12 +261,20 @@ class AuthService:
         *,
         role: AuthRole | None = None,
         registration_source: str | None = None,
+        keyword: str | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> dict[str, object]:
         safe_page = max(1, int(page or 1))
         safe_page_size = max(1, min(int(page_size or 20), 100))
         items = self.list_keys(role=role)
+        needle = self._clean(keyword).lower()
+        if needle:
+            items = [
+                item for item in items
+                if needle in self._clean(item.get("email")).lower()
+                or needle in self._clean(item.get("name")).lower()
+            ]
         source = self._clean(registration_source).lower()
         if source and source != "all":
             items = [item for item in items if self._clean(item.get("registration_source")).lower() == source]

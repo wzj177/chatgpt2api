@@ -23,10 +23,12 @@
         :user-stats="userStats"
         :user-keys-loading="userKeysLoading"
         :user-key-busy="userKeyBusy"
+        :keyword="userSearch"
         v-model:current-page="currentPage"
         v-model:page-size="pageSize"
         :registration-source="registrationSource"
         @update:registrationSource="registrationSource = $event"
+        @update:keyword="userSearch = $event"
         :page-size-options="pageSizeOptions"
         :user-keys-total="userKeysTotal"
         @edit="openUserKeyEditModal"
@@ -69,6 +71,7 @@ const userKeys = userKeysRuntime.userKeys
 const userStats = userKeysRuntime.userStats
 const userKeysLoading = userKeysRuntime.userKeysLoading
 const userKeyBusy = userKeysRuntime.userKeyBusy
+const userSearch = userKeysRuntime.userSearch
 const currentPage = userKeysRuntime.currentPage
 const pageSize = userKeysRuntime.pageSize
 const registrationSource = userKeysRuntime.registrationSource

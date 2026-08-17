@@ -1161,6 +1161,7 @@ def create_router() -> APIRouter:
         page: int = Query(default=1, ge=1),
         page_size: int = Query(default=20, ge=1, le=100),
         registration_source: str = Query(default="", max_length=40),
+        keyword: str = Query(default="", max_length=254),
         authorization: str | None = Header(default=None),
     ):
         require_admin(authorization)
@@ -1168,6 +1169,7 @@ def create_router() -> APIRouter:
             auth_service.list_keys_page,
             role="user",
             registration_source=registration_source,
+            keyword=keyword,
             page=page,
             page_size=page_size,
         )

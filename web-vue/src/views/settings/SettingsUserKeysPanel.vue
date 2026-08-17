@@ -8,6 +8,14 @@
 
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3">
+        <Input
+          :model-value="props.keyword"
+          type="search"
+          placeholder="搜索邮箱或用户名"
+          class="min-w-[14rem] max-w-sm"
+          aria-label="搜索邮箱或用户名"
+          @update:model-value="emit('update:keyword', String($event))"
+        />
         <p class="text-xs text-muted-foreground">共 {{ userKeysTotal }} 位用户</p>
         <span v-if="selectedIds.length" class="text-xs text-muted-foreground">已选 {{ selectedIds.length }} 位</span>
       </div>
@@ -159,6 +167,7 @@ const props = defineProps<{
   userStats: UserStats | null
   userKeysLoading: boolean
   userKeyBusy: string
+  keyword: string
   workspaceLayout: boolean
   currentPage: number
   pageSize: number
@@ -171,6 +180,7 @@ const emit = defineEmits<{
   'update:currentPage': [value: number]
   'update:pageSize': [value: number]
   'update:registrationSource': [value: string]
+  'update:keyword': [value: string]
   edit: [item: UserKey]
   toggle: [item: UserKey]
   delete: [item: UserKey]
