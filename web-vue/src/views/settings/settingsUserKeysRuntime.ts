@@ -50,11 +50,15 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
     pageSize,
     loading: userKeysLoading,
     errorMessage: '加载用户密钥失败',
-    fetch: ({ page, pageSize: size }) => userKeysApi.list({
-      page,
-      page_size: size,
-      registration_source: registrationSource.value,
-    }),
+    fetch: ({ page, pageSize: size }) => {
+      const params = {
+        page,
+        page_size: size,
+        registration_source: registrationSource.value,
+      }
+      console.info('[用户管理] 请求用户列表', params)
+      return userKeysApi.list(params)
+    },
     resolvePage: response => response.page,
     resolvePageCount: response => Math.max(1, Math.ceil(response.total / Math.max(1, response.page_size))),
     resolveTotal: response => response.total,
@@ -75,7 +79,8 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
   watch(pageSize, () => {
     void userKeysQuery.resetAndLoad()
   })
-  watch(registrationSource, () => {
+  watch(registrationSource, (value, previousValue) => {
+    console.info('[用户管理] 注册来源已切换', { previousValue, value })
     void userKeysQuery.resetAndLoad()
   })
 

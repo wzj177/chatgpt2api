@@ -25,7 +25,8 @@
         :user-key-busy="userKeyBusy"
         v-model:current-page="currentPage"
         v-model:page-size="pageSize"
-        v-model:registration-source="registrationSource"
+        :registration-source="registrationSource"
+        @update:registrationSource="registrationSource = $event"
         :page-size-options="pageSizeOptions"
         :user-keys-total="userKeysTotal"
         @edit="openUserKeyEditModal"
@@ -69,6 +70,7 @@ const userKeysLoading = userKeysRuntime.userKeysLoading
 const userKeyBusy = userKeysRuntime.userKeyBusy
 const currentPage = userKeysRuntime.currentPage
 const pageSize = userKeysRuntime.pageSize
+const registrationSource = userKeysRuntime.registrationSource
 const pageSizeOptions = userKeysRuntime.pageSizeOptions
 const userKeysTotal = userKeysRuntime.userKeysTotal
 const userKeyModal = userKeysRuntime.userKeyModal

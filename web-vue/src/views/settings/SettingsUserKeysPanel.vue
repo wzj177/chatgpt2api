@@ -16,12 +16,11 @@
         aria-label="用户排序"
       />
       <ConsoleSegmentedTabs
-        :model-value="registrationSource"
+        v-model="registrationSourceMode"
         class="max-w-md"
         fit="content"
         :options="registrationSourceOptions"
         aria-label="注册来源筛选"
-        @update:model-value="emit('update:registrationSource', String($event))"
       />
     </div>
 
@@ -121,7 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Button, TableShell } from 'nanocat-ui'
 import type { SegmentedValue } from 'nanocat-ui'
 import ListPagination from '@/components/ai/ListPagination.vue'
@@ -156,6 +155,19 @@ const emit = defineEmits<{
 }>()
 
 const sortMode = ref<SegmentedValue>('last_used')
+const registrationSourceMode = ref<SegmentedValue>(props.registrationSource as SegmentedValue)
+watch(() => props.registrationSource, (value) => {
+  if (value !== String(registrationSourceMode.value)) {
+    registrationSourceMode.value = value as SegmentedValue
+  }
+})
+watch(registrationSourceMode, (value) => {
+  const nextValue = String(value)
+  console.info('[用户管理] 来源控件已选择', { value: nextValue, parentValue: props.registrationSource })
+  if (nextValue !== props.registrationSource) {
+    emit('update:registrationSource', nextValue)
+  }
+})
 const registrationSourceOptions = [
   { value: 'all', label: '全部来源' },
   { value: 'email', label: '邮箱注册' },
