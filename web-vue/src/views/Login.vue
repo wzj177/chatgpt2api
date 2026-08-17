@@ -12,7 +12,7 @@
         <ConsoleSegmentedTabs
           v-model="mode"
           class="mt-6"
-          :options="authModes"
+          :options="visibleAuthModes"
           aria-label="登录方式"
         />
 
@@ -139,6 +139,7 @@ const protocolLoading = ref(false)
 const protocolMarkdown = ref('')
 const protocolError = ref('')
 const linuxdoEnabled = ref(false)
+const registrationEnabled = ref(true)
 
 const loginForm = reactive({ email: '', password: '', accepted: false })
 const registerForm = reactive({
@@ -155,6 +156,9 @@ const authModes = [
   { value: 'register', label: '注册' },
   { value: 'admin', label: '管理员' },
 ]
+const visibleAuthModes = computed(() => registrationEnabled.value
+  ? authModes
+  : authModes.filter(item => item.value !== 'register'))
 
 const passwordMismatch = computed(() => (
   Boolean(registerForm.passwordConfirmation) && registerForm.password !== registerForm.passwordConfirmation
@@ -189,7 +193,7 @@ async function handleUserLogin() {
 }
 
 async function handleRegister() {
-  if (!canRegister.value) return
+  if (!registrationEnabled.value || !canRegister.value) return
   isLoading.value = true
   try {
     await finishLogin(await authStore.register({
@@ -254,7 +258,13 @@ async function handleLinuxDoCallback() {
 onMounted(() => {
   void (async () => {
     try {
-      linuxdoEnabled.value = (await authApi.linuxdoConfig()).enabled
+      const [linuxdoConfig, registrationConfig] = await Promise.all([
+        authApi.linuxdoConfig(),
+        authApi.registrationConfig(),
+      ])
+      linuxdoEnabled.value = linuxdoConfig.enabled
+      registrationEnabled.value = registrationConfig.enabled
+      if (!registrationEnabled.value && mode.value === 'register') mode.value = 'user'
     } catch {
       linuxdoEnabled.value = false
     }

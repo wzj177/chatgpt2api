@@ -1158,12 +1158,14 @@ def create_router() -> APIRouter:
     async def list_user_keys(
         page: int = Query(default=1, ge=1),
         page_size: int = Query(default=20, ge=1, le=100),
+        registration_source: str = Query(default="", max_length=40),
         authorization: str | None = Header(default=None),
     ):
         require_admin(authorization)
         return await run_in_threadpool(
             auth_service.list_keys_page,
             role="user",
+            registration_source=registration_source,
             page=page,
             page_size=page_size,
         )

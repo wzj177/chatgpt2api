@@ -76,6 +76,17 @@ class AuthService:
         name = self._clean(raw.get("name")) or self._default_name(role)
         created_at = self._clean(raw.get("created_at")) or _now_iso()
         last_used_at = self._clean(raw.get("last_used_at")) or None
+        email = self._clean(raw.get("email")).lower() or None
+        oauth_provider = self._clean(raw.get("oauth_provider")).lower() or None
+        registration_source = self._clean(raw.get("registration_source")).lower() or oauth_provider
+        if not registration_source:
+            registration_source = "email" if email else "admin"
+        source = str(item.get("registration_source") or item.get("oauth_provider") or ("email" if item.get("email") else "admin"))
+        source_label = {
+            "email": "邮箱注册",
+            "linuxdo": "Linux.do",
+            "admin": "管理员创建",
+        }.get(source, source)
         return {
             "id": item_id,
             "name": name,
@@ -84,7 +95,7 @@ class AuthService:
             "enabled": bool(raw.get("enabled", True)),
             "created_at": created_at,
             "last_used_at": last_used_at,
-            "email": self._clean(raw.get("email")).lower() or None,
+            "email": email,
             "phone": self._clean(raw.get("phone")) or None,
             "password_hash": self._clean(raw.get("password_hash")) or None,
             "terms_accepted_at": self._clean(raw.get("terms_accepted_at")) or None,
@@ -92,8 +103,9 @@ class AuthService:
             "daily_image_date": self._clean(raw.get("daily_image_date")) or None,
             "daily_image_count": max(0, int(raw.get("daily_image_count") or 0)),
             "login_count": max(0, int(raw.get("login_count") or 0)),
-            "oauth_provider": self._clean(raw.get("oauth_provider")) or None,
+            "oauth_provider": oauth_provider,
             "oauth_subject": self._clean(raw.get("oauth_subject")) or None,
+            "registration_source": registration_source,
         }
 
     def _load_snapshot(self) -> tuple[list[dict[str, object]], str]:
@@ -227,6 +239,8 @@ class AuthService:
             "usage_count": int(item.get("usage_count") or 0),
             "daily_image_count": daily_image_count,
             "login_count": int(item.get("login_count") or 0),
+            "registration_source": source,
+            "registration_source_label": source_label,
         }
 
     def list_keys(self, role: AuthRole | None = None) -> list[dict[str, object]]:
@@ -239,12 +253,16 @@ class AuthService:
         self,
         *,
         role: AuthRole | None = None,
+        registration_source: str | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> dict[str, object]:
         safe_page = max(1, int(page or 1))
         safe_page_size = max(1, min(int(page_size or 20), 100))
         items = self.list_keys(role=role)
+        source = self._clean(registration_source).lower()
+        if source and source != "all":
+            items = [item for item in items if self._clean(item.get("registration_source")).lower() == source]
         start = (safe_page - 1) * safe_page_size
         return {
             "items": items[start:start + safe_page_size],
@@ -509,6 +527,7 @@ class AuthService:
                 "terms_accepted_at": _now_iso(), "usage_count": 0,
                 "daily_image_date": _today_iso(), "daily_image_count": 0,
                 "login_count": 0,
+                "registration_source": "email",
             }
             result = self.storage.mutate_auth_keys(StorageMutation(upserts=(item,), expected_revision=self._revision))
             self._set_cached_item_locked(item, result.revision)
@@ -581,6 +600,7 @@ class AuthService:
                     "login_count": 1,
                     "oauth_provider": provider,
                     "oauth_subject": subject,
+                    "registration_source": provider,
                 }
             else:
                 item = dict(self._items[index])
@@ -592,6 +612,7 @@ class AuthService:
                 item["name"] = item.get("name") or username
                 item["oauth_provider"] = provider
                 item["oauth_subject"] = subject
+                item["registration_source"] = provider
             result = self.storage.mutate_auth_keys(
                 StorageMutation(upserts=(item,), expected_revision=self._revision)
             )

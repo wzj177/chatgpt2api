@@ -126,6 +126,7 @@ export interface Settings {
     include: Record<string, boolean>
   }
   oauth: {
+    registration_enabled: boolean
     linuxdo: {
       enabled: boolean
       client_id: string

@@ -78,6 +78,10 @@ class OAuthProviderView(_StrictModel):
     enabled: bool = False
 
 
+class RegistrationConfigView(_StrictModel):
+    enabled: bool = True
+
+
 class OAuthExchangeRequest(_StrictModel):
     code: str = Field(min_length=1, max_length=256)
 
@@ -100,6 +104,8 @@ class UserKeyView(_StrictModel):
     usage_count: int = 0
     daily_image_count: int = 0
     login_count: int = 0
+    registration_source: str = "email"
+    registration_source_label: str = "邮箱注册"
 
 
 class UserKeyListView(_StrictModel):

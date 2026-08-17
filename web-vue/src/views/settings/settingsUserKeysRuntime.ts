@@ -23,6 +23,7 @@ function createUserKeyForm(): UserKeyForm {
 
 export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptions) {
   const pageSize = ref(10)
+  const registrationSource = ref('all')
   const userKeys = ref<UserKey[]>([])
   const userKeysLoaded = ref(false)
   const userKeysLoading = ref(false)
@@ -49,7 +50,11 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
     pageSize,
     loading: userKeysLoading,
     errorMessage: '加载用户密钥失败',
-    fetch: ({ page, pageSize: size }) => userKeysApi.list({ page, page_size: size }),
+    fetch: ({ page, pageSize: size }) => userKeysApi.list({
+      page,
+      page_size: size,
+      registration_source: registrationSource.value,
+    }),
     resolvePage: response => response.page,
     resolvePageCount: response => Math.max(1, Math.ceil(response.total / Math.max(1, response.page_size))),
     resolveTotal: response => response.total,
@@ -68,6 +73,9 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
     errorMessage: '加载用户统计失败',
   })
   watch(pageSize, () => {
+    void userKeysQuery.resetAndLoad()
+  })
+  watch(registrationSource, () => {
     void userKeysQuery.resetAndLoad()
   })
 
@@ -180,6 +188,7 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
     userKeys,
     currentPage: userKeysQuery.currentPage,
     pageSize,
+    registrationSource,
     pageSizeOptions: [5, 10, 20, 50, 100],
     userKeysTotal: userKeysQuery.total,
     userStats,

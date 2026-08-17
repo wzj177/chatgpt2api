@@ -12,6 +12,8 @@ export interface UserKey {
   usage_count: number
   daily_image_count: number
   login_count: number
+  registration_source: string
+  registration_source_label: string
 }
 
 export interface UserKeysResponse {
@@ -47,7 +49,7 @@ export interface UserStats {
 }
 
 export const userKeysApi = {
-  list: (params?: { page?: number; page_size?: number }) =>
+  list: (params?: { page?: number; page_size?: number; registration_source?: string }) =>
     apiClient.get<never, UserKeysResponse>('/api/auth/users', { params: params || undefined }),
   stats: () => apiClient.get<never, UserStats>('/api/auth/users/stats'),
 

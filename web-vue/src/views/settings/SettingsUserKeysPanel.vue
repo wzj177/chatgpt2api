@@ -15,6 +15,13 @@
         :options="sortOptions"
         aria-label="用户排序"
       />
+      <ConsoleSegmentedTabs
+        v-model="registrationSourceModel"
+        class="max-w-md"
+        fit="content"
+        :options="registrationSourceOptions"
+        aria-label="注册来源筛选"
+      />
     </div>
 
     <PageLoadingState v-if="userKeysLoading" compact title="正在加载用户" description="读取用户列表和用量统计。" />
@@ -38,8 +45,9 @@
         <tr>
           <th class="w-[27%] py-3 pl-4 pr-5">用户</th>
           <th class="w-[20%] py-3 pr-5">注册与登录</th>
+          <th class="w-[13%] py-3 pr-5">注册来源</th>
           <th class="w-[18%] py-3 pr-5">成功生图</th>
-          <th class="w-[35%] py-3 pr-4 text-right">操作</th>
+          <th class="w-[22%] py-3 pr-4 text-right">操作</th>
         </tr>
       </template>
 
@@ -65,6 +73,10 @@
         <td class="py-3 pr-5 align-top text-xs text-muted-foreground">
           <p>注册：{{ formatDateTime(item.created_at) }}</p>
           <p class="mt-1">最近登录：{{ formatDateTime(item.last_used_at) }}</p>
+        </td>
+
+        <td class="py-3 pr-5 align-top text-xs text-muted-foreground">
+          {{ item.registration_source_label }}
         </td>
 
         <td class="py-3 pr-5 align-top text-xs">
@@ -128,19 +140,30 @@ const props = defineProps<{
   workspaceLayout: boolean
   currentPage: number
   pageSize: number
+  registrationSource: string
   pageSizeOptions: number[]
   userKeysTotal: number
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'update:currentPage': [value: number]
   'update:pageSize': [value: number]
+  'update:registrationSource': [value: string]
   edit: [item: UserKey]
   toggle: [item: UserKey]
   delete: [item: UserKey]
 }>()
 
 const sortMode = ref<SegmentedValue>('last_used')
+const registrationSourceModel = computed({
+  get: () => props.registrationSource,
+  set: value => emit('update:registrationSource', String(value)),
+})
+const registrationSourceOptions = [
+  { value: 'all', label: '全部来源' },
+  { value: 'email', label: '邮箱注册' },
+  { value: 'linuxdo', label: 'Linux.do' },
+]
 const sortOptions = [
   { value: 'last_used', label: '最近登录' },
   { value: 'usage', label: '使用次数' },

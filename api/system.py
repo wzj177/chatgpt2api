@@ -25,6 +25,7 @@ from contracts.auth import (
     OAuthProviderView,
     PasswordLoginRequest,
     PublicProtocolView,
+    RegistrationConfigView,
     RegisterRequest,
 )
 from contracts.models import ModelCatalogView
@@ -227,6 +228,8 @@ def create_router(app_version: str) -> APIRouter:
 
     @router.post("/auth/register", response_model=AuthView)
     async def register(body: RegisterRequest):
+        if not bool(config.get_oauth_settings().get("registration_enabled", True)):
+            raise HTTPException(status_code=403, detail={"error": "当前已关闭用户注册"})
         if body.password != body.password_confirmation:
             raise HTTPException(status_code=400, detail={"error": "两次密码输入不一致"})
         try:
@@ -250,6 +253,12 @@ def create_router(app_version: str) -> APIRouter:
     @router.get("/auth/oauth/linuxdo/config", response_model=OAuthProviderView)
     async def linuxdo_oauth_config():
         return OAuthProviderView(enabled=linuxdo_oauth_service.is_enabled())
+
+    @router.get("/auth/registration-config", response_model=RegistrationConfigView)
+    async def registration_config():
+        return RegistrationConfigView(
+            enabled=bool(config.get_oauth_settings().get("registration_enabled", True)),
+        )
 
     @router.get("/auth/oauth/linuxdo/start")
     async def linuxdo_oauth_start(request: Request):

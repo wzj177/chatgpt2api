@@ -15,6 +15,6 @@ def reserve_user_image_quota(user_id: str, count: int) -> str:
     return auth_service.reserve_successful_images(
         user_id,
         count,
-        per_user_limit,
+        max(0, int(config.user_daily_image_limit or 0)),
         global_limit=global_limit,
     )

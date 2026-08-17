@@ -107,6 +107,7 @@ DEFAULT_THIRD_PARTY_APPS = {
 }
 
 DEFAULT_OAUTH = {
+    "registration_enabled": True,
     "linuxdo": {
         "enabled": False,
         "client_id": "",
@@ -383,6 +384,7 @@ def _normalize_oauth_settings(value: object) -> dict[str, object]:
         "oidc_discovery": str(linuxdo_source.get("oidc_discovery") or defaults["oidc_discovery"]).strip(),
     })
     normalized = copy.deepcopy(source)
+    normalized["registration_enabled"] = _normalize_bool(source.get("registration_enabled"), True)
     normalized["linuxdo"] = normalized_linuxdo
     return normalized
 

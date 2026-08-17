@@ -54,6 +54,10 @@ export interface OAuthProviderView {
   enabled: boolean
 }
 
+export interface RegistrationConfigView {
+  enabled: boolean
+}
+
 export const authApi = {
   async login(data: LoginRequest) {
     setAuthToken(data.password)
@@ -76,6 +80,7 @@ export const authApi = {
   },
   protocol: () => apiClient.get<never, PublicProtocolView>('/auth/protocol'),
   linuxdoConfig: () => apiClient.get<never, OAuthProviderView>('/auth/oauth/linuxdo/config'),
+  registrationConfig: () => apiClient.get<never, RegistrationConfigView>('/auth/registration-config'),
   linuxdoStart: () => apiClient.get<never, { authorization_url: string }>('/auth/oauth/linuxdo/start'),
   async linuxdoExchange(code: string) {
     const result = await apiClient.post<{ code: string }, AuthView>('/auth/oauth/linuxdo/exchange', { code })

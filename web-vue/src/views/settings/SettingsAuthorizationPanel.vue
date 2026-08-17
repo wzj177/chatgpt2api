@@ -1,6 +1,18 @@
 <template>
   <div class="space-y-4">
     <FormSection
+      title="用户注册"
+      subtitle="关闭后，前端隐藏注册入口，直接调用注册接口也会返回 403。"
+    >
+      <Checkbox
+        v-model="settings.oauth.registration_enabled"
+        :disabled="fieldReadOnly('oauth.registration_enabled')"
+      >
+        开放用户注册
+      </Checkbox>
+    </FormSection>
+
+    <FormSection
       title="Linux.do 登录"
       subtitle="仅用于普通用户登录，不会授予管理员控制台权限。"
     >

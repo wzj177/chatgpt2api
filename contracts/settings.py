@@ -176,10 +176,12 @@ class LinuxDoOAuthPatch(_LinuxDoOAuthFields):
 
 
 class OAuthSettings(_StrictModel):
+    registration_enabled: bool = True
     linuxdo: LinuxDoOAuthSettings = Field(default_factory=LinuxDoOAuthSettings)
 
 
 class OAuthPatch(_StrictModel):
+    registration_enabled: bool = True
     linuxdo: LinuxDoOAuthPatch = Field(default_factory=LinuxDoOAuthPatch)
 
 

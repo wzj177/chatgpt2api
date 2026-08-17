@@ -308,6 +308,7 @@ _FIELD_SPECS: dict[str, dict[str, Any]] = {
     "third_party_apps.infinite_canvas.enabled": _field_metadata(False),
     "third_party_apps.infinite_canvas.url": _field_metadata("https://canvas.best"),
     "oauth.linuxdo.enabled": _field_metadata(False),
+    "oauth.registration_enabled": _field_metadata(True),
     "oauth.linuxdo.client_id": _field_metadata(""),
     "oauth.linuxdo.client_secret": _field_metadata("", sensitive=True),
     "oauth.linuxdo.authorization_endpoint": _field_metadata(DEFAULT_OAUTH["linuxdo"]["authorization_endpoint"]),
@@ -635,6 +636,7 @@ class SettingsManagementService:
                 }),
             ),
             oauth=OAuthSettings(
+                registration_enabled=_bool(oauth.get("registration_enabled"), True),
                 linuxdo=LinuxDoOAuthSettings(
                     enabled=_bool(linuxdo_oauth.get("enabled"), False),
                     client_id=_text(linuxdo_oauth.get("client_id")),
