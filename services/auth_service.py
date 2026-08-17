@@ -78,7 +78,7 @@ class AuthService:
         last_used_at = self._clean(raw.get("last_used_at")) or None
         email = self._clean(raw.get("email")).lower() or None
         oauth_provider = self._clean(raw.get("oauth_provider")).lower() or None
-        registration_source = self._clean(raw.get("registration_source")).lower() or oauth_provider
+        registration_source = oauth_provider or self._clean(raw.get("registration_source")).lower()
         if not registration_source:
             registration_source = "email" if email else "admin"
         return {
@@ -221,7 +221,7 @@ class AuthService:
             if str(item.get("daily_image_date") or "") == _today_iso()
             else 0
         )
-        source = str(item.get("registration_source") or item.get("oauth_provider") or ("email" if item.get("email") else "admin"))
+        source = str(item.get("oauth_provider") or item.get("registration_source") or ("email" if item.get("email") else "admin"))
         source_label = {
             "email": "邮箱注册",
             "linuxdo": "Linux.do",
