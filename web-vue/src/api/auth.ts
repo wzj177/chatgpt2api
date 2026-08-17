@@ -77,7 +77,11 @@ export const authApi = {
   protocol: () => apiClient.get<never, PublicProtocolView>('/auth/protocol'),
   linuxdoConfig: () => apiClient.get<never, OAuthProviderView>('/auth/oauth/linuxdo/config'),
   linuxdoStart: () => apiClient.get<never, { authorization_url: string }>('/auth/oauth/linuxdo/start'),
-  linuxdoExchange: (code: string) => apiClient.post<{ code: string }, AuthView>('/auth/oauth/linuxdo/exchange', { code }),
+  async linuxdoExchange(code: string) {
+    const result = await apiClient.post<{ code: string }, AuthView>('/auth/oauth/linuxdo/exchange', { code })
+    if (result.access_token) setAuthToken(result.access_token)
+    return result
+  },
 
   logout: () => {
     clearAuthToken()
