@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
+from urllib.parse import quote
+from uuid import uuid4
 from fastapi import APIRouter, Header, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
@@ -298,7 +300,18 @@ def create_router(app_version: str) -> APIRouter:
                 "error_type": type(exc).__name__,
                 "error": str(exc),
             })
-            return RedirectResponse("/#/login?oauth_error=第三方登录失败")
+            return RedirectResponse(f"/#/login?oauth_error={quote(str(exc))}")
+        except Exception as exc:
+            error_id = uuid4().hex[:12]
+            logger.error({
+                "event": "linuxdo_oauth_callback_unhandled",
+                "error_id": error_id,
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+            })
+            return RedirectResponse(
+                f"/#/login?oauth_error={quote(f'第三方登录服务异常，错误编号：{error_id}')}"
+            )
         return RedirectResponse(f"/#/login?oauth_code={exchange_code}")
 
     @router.post("/auth/oauth/linuxdo/exchange", response_model=AuthView)

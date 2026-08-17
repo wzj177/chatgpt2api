@@ -5,8 +5,10 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from uuid import uuid4
 
 from services.protocol.error_response import anthropic_error_response, openai_error_response
+from utils.log import logger
 
 
 def _is_openai_compatible_path(path: str) -> bool:
@@ -44,3 +46,24 @@ def install_exception_handlers(app: FastAPI) -> None:
         if _is_openai_compatible_path(request.url.path):
             return _compatible_error_response(request, exc.errors(), 422)
         return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        error_id = uuid4().hex[:12]
+        logger.error({
+            "event": "unhandled_exception",
+            "error_id": error_id,
+            "path": request.url.path,
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+        })
+        if _is_openai_compatible_path(request.url.path):
+            return _compatible_error_response(
+                request,
+                {"error": f"服务器内部错误，错误编号：{error_id}"},
+                500,
+            )
+        return JSONResponse(
+            status_code=500,
+            content={"detail": {"error": f"服务器内部错误，错误编号：{error_id}"}},
+        )
