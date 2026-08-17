@@ -2,11 +2,11 @@
 
 from services.auth_service import auth_service
 
-
-def reserve_user_image_quota(user_id: str, count: int, per_user_limit: int) -> str:
+def reserve_user_image_quota(user_id: str, count: int) -> str:
     # Unknown and unlimited account quotas cannot produce a safe finite cap.
     # The account selector remains authoritative for those pools.
     from services.account_service import account_service
+    from services.config import config
 
     stats = account_service.get_stats()
     global_limit = None

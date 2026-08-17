@@ -12,6 +12,9 @@
           <p class="ui-section-title">用户管理</p>
           <p class="mt-1 text-xs text-muted-foreground">管理注册用户、登录状态和成功生图用量。</p>
         </div>
+        <Button size="sm" variant="outline" :disabled="userKeysLoading" @click="loadUserKeys">
+          {{ userKeysLoading ? '刷新中...' : '刷新用户' }}
+        </Button>
       </div>
 
       <SettingsUserKeysPanel
@@ -24,7 +27,6 @@
         v-model:page-size="pageSize"
         :page-size-options="pageSizeOptions"
         :user-keys-total="userKeysTotal"
-        @load="loadUserKeys"
         @edit="openUserKeyEditModal"
         @toggle="toggleUserKey"
         @delete="deleteUserKey"
@@ -43,6 +45,7 @@
 </template>
 
 <script setup lang="ts">
+import { Button } from 'nanocat-ui'
 import PagePanel from '@/components/ai/PagePanel.vue'
 import SettingsUserKeyModals from '@/views/settings/SettingsUserKeyModals.vue'
 import SettingsUserKeysPanel from '@/views/settings/SettingsUserKeysPanel.vue'

@@ -105,6 +105,21 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function linuxdoLogin(code: string) {
+    isLoading.value = true
+    try {
+      const status = await authApi.linuxdoExchange(code)
+      const authenticated = applyStatus(status)
+      lastCheckedAt.value = Date.now()
+      return authenticated
+    } catch (error) {
+      clearIdentity()
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   async function logout() {
     try {
       await authApi.logout()
@@ -160,6 +175,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     passwordLogin,
     register,
+    linuxdoLogin,
     logout,
     checkAuth,
     clearIdentity,

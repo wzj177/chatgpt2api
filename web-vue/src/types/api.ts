@@ -125,6 +125,18 @@ export interface Settings {
     has_passphrase: boolean
     include: Record<string, boolean>
   }
+  oauth: {
+    linuxdo: {
+      enabled: boolean
+      client_id: string
+      client_secret: string
+      has_client_secret: boolean
+      authorization_endpoint: string
+      token_endpoint: string
+      user_endpoint: string
+      oidc_discovery: string
+    }
+  }
   third_party_apps: {
     infinite_canvas: {
       enabled: boolean

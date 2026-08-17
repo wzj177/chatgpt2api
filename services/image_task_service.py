@@ -500,7 +500,6 @@ class ImageTaskService:
                 quota_reservation_id = reserve_user_image_quota(
                     owner,
                     requested,
-                    config.user_daily_image_limit,
                 )
                 with self._lock:
                     self._quota_reservations[key] = quota_reservation_id
@@ -1092,7 +1091,6 @@ class ImageTaskService:
                 self._quota_reservations[key] = reserve_user_image_quota(
                     owner,
                     int(task.get("n") or 1),
-                    config.user_daily_image_limit,
                 )
             previous_task = deepcopy(task)
             queued_task = deepcopy(task)

@@ -35,6 +35,7 @@ export const settingsTabs: SettingsSelectOption[] = [
   { value: 'storage', label: '图片存储与审核' },
   { value: 'prompts', label: '提示词源' },
   { value: 'backup', label: 'R2 备份' },
+  { value: 'authorization', label: '授权管理' },
   { value: 'api-docs', label: '接口接入' },
   { value: 'canvas', label: '外部服务' },
   { value: 'cpa', label: 'CPA' },

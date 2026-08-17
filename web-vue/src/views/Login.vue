@@ -27,6 +27,24 @@
           <Button type="submit" size="md" variant="primary" block :disabled="isLoading || !canUserLogin">
             {{ isLoading ? '登录中...' : '登录' }}
           </Button>
+          <template v-if="linuxdoEnabled">
+            <div class="flex items-center gap-3 text-xs text-muted-foreground">
+              <span class="h-px flex-1 bg-border"></span>
+              <span>或</span>
+              <span class="h-px flex-1 bg-border"></span>
+            </div>
+            <Button
+              type="button"
+              size="md"
+              variant="outline"
+              block
+              :disabled="isLoading || !loginForm.accepted"
+              @click="handleLinuxDoLogin"
+            >
+              <img src="/oauth-assets/linuxdo.png" alt="" class="mr-2 h-4 w-4" />
+              使用 Linux.do 登录
+            </Button>
+          </template>
         </form>
 
         <form v-else-if="mode === 'register'" class="mt-6 space-y-4" @submit.prevent="handleRegister">
@@ -89,7 +107,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, FormField, Input } from 'nanocat-ui'
 import type { SegmentedValue } from 'nanocat-ui'
@@ -120,6 +138,7 @@ const protocolOpen = ref(false)
 const protocolLoading = ref(false)
 const protocolMarkdown = ref('')
 const protocolError = ref('')
+const linuxdoEnabled = ref(false)
 
 const loginForm = reactive({ email: '', password: '', accepted: false })
 const registerForm = reactive({
@@ -199,6 +218,49 @@ async function handleAdminLogin() {
     isLoading.value = false
   }
 }
+
+async function handleLinuxDoLogin() {
+  if (!loginForm.accepted) return
+  isLoading.value = true
+  try {
+    const result = await authApi.linuxdoStart()
+    window.location.assign(result.authorization_url)
+  } catch (error) {
+    toast.error(errorMessage(error, 'Linux.do 登录暂不可用。'))
+    isLoading.value = false
+  }
+}
+
+async function handleLinuxDoCallback() {
+  const code = String(route.query.oauth_code || '').trim()
+  const oauthError = String(route.query.oauth_error || '').trim()
+  if (oauthError) {
+    toast.error(oauthError)
+    await router.replace({ path: '/login' })
+    return
+  }
+  if (!code) return
+  isLoading.value = true
+  try {
+    await finishLogin(await authStore.linuxdoLogin(code))
+  } catch (error) {
+    toast.error(errorMessage(error, 'Linux.do 登录失败，请重试。'))
+    await router.replace({ path: '/login' })
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(() => {
+  void (async () => {
+    try {
+      linuxdoEnabled.value = (await authApi.linuxdoConfig()).enabled
+    } catch {
+      linuxdoEnabled.value = false
+    }
+    await handleLinuxDoCallback()
+  })()
+})
 
 async function loadProtocol() {
   protocolLoading.value = true

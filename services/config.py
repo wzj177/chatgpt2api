@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import math
 import os
 import re
 import threading
@@ -102,6 +103,18 @@ DEFAULT_THIRD_PARTY_APPS = {
     "infinite_canvas": {
         "enabled": False,
         "url": "https://canvas.best",
+    },
+}
+
+DEFAULT_OAUTH = {
+    "linuxdo": {
+        "enabled": False,
+        "client_id": "",
+        "client_secret": "",
+        "authorization_endpoint": "https://connect.linux.do/oauth2/authorize",
+        "token_endpoint": "https://connect.linux.do/oauth2/token",
+        "user_endpoint": "https://connect.linux.do/api/user",
+        "oidc_discovery": "https://connect.linux.do/.well-known/openid-configuration",
     },
 }
 
@@ -355,6 +368,25 @@ def _normalize_third_party_apps_settings(value: object) -> dict[str, object]:
     return normalized
 
 
+def _normalize_oauth_settings(value: object) -> dict[str, object]:
+    source = value if isinstance(value, dict) else {}
+    linuxdo_source = source.get("linuxdo") if isinstance(source.get("linuxdo"), dict) else {}
+    defaults = DEFAULT_OAUTH["linuxdo"]
+    normalized_linuxdo = copy.deepcopy(linuxdo_source)
+    normalized_linuxdo.update({
+        "enabled": _normalize_bool(linuxdo_source.get("enabled"), False),
+        "client_id": str(linuxdo_source.get("client_id") or "").strip(),
+        "client_secret": str(linuxdo_source.get("client_secret") or "").strip(),
+        "authorization_endpoint": str(linuxdo_source.get("authorization_endpoint") or defaults["authorization_endpoint"]).strip(),
+        "token_endpoint": str(linuxdo_source.get("token_endpoint") or defaults["token_endpoint"]).strip(),
+        "user_endpoint": str(linuxdo_source.get("user_endpoint") or defaults["user_endpoint"]).strip(),
+        "oidc_discovery": str(linuxdo_source.get("oidc_discovery") or defaults["oidc_discovery"]).strip(),
+    })
+    normalized = copy.deepcopy(source)
+    normalized["linuxdo"] = normalized_linuxdo
+    return normalized
+
+
 def _legacy_basic_from_settings(value: object, settings: dict[str, object]) -> dict[str, object]:
     source = dict(value) if isinstance(value, dict) else {}
     source["proxy"] = str(settings.get("proxy") or "").strip()
@@ -490,7 +522,24 @@ class ConfigStore:
 
     @property
     def user_daily_image_limit(self) -> int:
-        return normalize_integer_setting("user_daily_image_limit", self.data.get("user_daily_image_limit", 20))
+        self.reload_if_changed()
+        configured = normalize_integer_setting(
+            "user_daily_image_limit",
+            self.data.get("user_daily_image_limit", 20),
+        )
+        try:
+            from services.account_service import account_service
+            from services.auth_service import auth_service
+
+            account_stats = account_service.get_stats()
+            users = auth_service.list_keys(role="user")
+            enabled_users = max(1, sum(1 for item in users if bool(item.get("enabled", True))))
+            retention_days = max(1, math.ceil(self.image_retention_hours / 24))
+            fair_share = max(0, int(account_stats.get("total_quota") or 0)) // enabled_users // retention_days
+            return max(2, fair_share)
+        except Exception:
+            # Settings must remain readable during early startup or degraded account storage.
+            return max(2, configured)
 
     @property
     def log_retention_hours(self) -> int:
@@ -729,6 +778,7 @@ class ConfigStore:
             data["proxy_runtime"] = self.get_public_proxy_runtime_settings()
             data["fallback_proxy"] = self.get_proxy_fallback_settings()
             data["third_party_apps"] = self.get_third_party_apps_settings()
+            data["oauth"] = self.get_oauth_settings()
             data.pop("basic", None)
             return data
 
@@ -780,6 +830,10 @@ class ConfigStore:
     def get_third_party_apps_settings(self) -> dict[str, object]:
         return _normalize_third_party_apps_settings(self.data.get("third_party_apps"))
 
+    def get_oauth_settings(self) -> dict[str, object]:
+        self.reload_if_changed()
+        return _normalize_oauth_settings(self.data.get("oauth"))
+
     def update(self, data: dict[str, object]) -> dict[str, object]:
         with self._lock:
             self.reload_if_changed()
@@ -818,6 +872,8 @@ class ConfigStore:
                 )
             if "third_party_apps" in updates:
                 updates["third_party_apps"] = _normalize_third_party_apps_settings(updates.get("third_party_apps"))
+            if "oauth" in updates:
+                updates["oauth"] = _normalize_oauth_settings(updates.get("oauth"))
             if "proxy_runtime" in updates:
                 incoming_runtime = updates.get("proxy_runtime")
                 if isinstance(incoming_runtime, dict):

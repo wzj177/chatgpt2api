@@ -92,6 +92,8 @@ class AuthService:
             "daily_image_date": self._clean(raw.get("daily_image_date")) or None,
             "daily_image_count": max(0, int(raw.get("daily_image_count") or 0)),
             "login_count": max(0, int(raw.get("login_count") or 0)),
+            "oauth_provider": self._clean(raw.get("oauth_provider")) or None,
+            "oauth_subject": self._clean(raw.get("oauth_subject")) or None,
         }
 
     def _load_snapshot(self) -> tuple[list[dict[str, object]], str]:
@@ -530,6 +532,71 @@ class AuthService:
                 self._set_cached_item_locked(next_item, result.revision)
                 return self._public_item(next_item), raw_key
         return None
+
+    def authenticate_oauth_user(
+        self,
+        *,
+        provider: str,
+        subject: str,
+        email: str,
+        username: str,
+    ) -> tuple[dict[str, object], str]:
+        provider = self._clean(provider).lower()
+        subject = self._clean(subject)
+        email = self._clean(email).lower()
+        username = self._clean(username) or email.split("@", 1)[0]
+        if not provider or not subject or not email:
+            raise ValueError("第三方登录未返回完整用户身份")
+        with self._lock:
+            self._reload_locked()
+            index = next(
+                (
+                    idx for idx, item in enumerate(self._items)
+                    if item.get("role") == "user"
+                    and (
+                        (self._clean(item.get("oauth_provider")) == provider
+                         and self._clean(item.get("oauth_subject")) == subject)
+                        or self._clean(item.get("email")).lower() == email
+                    )
+                ),
+                None,
+            )
+            raw_key = f"sk-{secrets.token_urlsafe(24)}"
+            if index is None:
+                item = {
+                    "id": uuid.uuid4().hex[:12],
+                    "name": username,
+                    "role": "user",
+                    "key_hash": _hash_key(raw_key),
+                    "enabled": True,
+                    "created_at": _now_iso(),
+                    "last_used_at": _now_iso(),
+                    "email": email,
+                    "phone": None,
+                    "password_hash": self._password_hash(secrets.token_urlsafe(32)),
+                    "terms_accepted_at": _now_iso(),
+                    "usage_count": 0,
+                    "daily_image_date": _today_iso(),
+                    "daily_image_count": 0,
+                    "login_count": 1,
+                    "oauth_provider": provider,
+                    "oauth_subject": subject,
+                }
+            else:
+                item = dict(self._items[index])
+                if not bool(item.get("enabled", True)):
+                    raise ValueError("账号已停用")
+                item["key_hash"] = _hash_key(raw_key)
+                item["last_used_at"] = _now_iso()
+                item["login_count"] = max(0, int(item.get("login_count") or 0)) + 1
+                item["name"] = item.get("name") or username
+                item["oauth_provider"] = provider
+                item["oauth_subject"] = subject
+            result = self.storage.mutate_auth_keys(
+                StorageMutation(upserts=(item,), expected_revision=self._revision)
+            )
+            self._set_cached_item_locked(item, result.revision)
+            return self._public_item(item), raw_key
 
     def record_login(self, user_id: str) -> dict[str, object] | None:
         normalized_id = self._clean(user_id)

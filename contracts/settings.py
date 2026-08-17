@@ -157,6 +157,32 @@ class ThirdPartyAppsSettings(_StrictModel):
     infinite_canvas: InfiniteCanvasSettings = Field(default_factory=InfiniteCanvasSettings)
 
 
+class _LinuxDoOAuthFields(_StrictModel):
+    enabled: bool = False
+    client_id: str = ""
+    client_secret: str = ""
+    authorization_endpoint: str = "https://connect.linux.do/oauth2/authorize"
+    token_endpoint: str = "https://connect.linux.do/oauth2/token"
+    user_endpoint: str = "https://connect.linux.do/api/user"
+    oidc_discovery: str = "https://connect.linux.do/.well-known/openid-configuration"
+
+
+class LinuxDoOAuthSettings(_LinuxDoOAuthFields):
+    has_client_secret: bool = False
+
+
+class LinuxDoOAuthPatch(_LinuxDoOAuthFields):
+    pass
+
+
+class OAuthSettings(_StrictModel):
+    linuxdo: LinuxDoOAuthSettings = Field(default_factory=LinuxDoOAuthSettings)
+
+
+class OAuthPatch(_StrictModel):
+    linuxdo: LinuxDoOAuthPatch = Field(default_factory=LinuxDoOAuthPatch)
+
+
 class PublicInfiniteCanvasSettings(_StrictModel):
     enabled: bool = False
     url: str = "https://canvas.best"
@@ -210,6 +236,7 @@ class _SettingsEditableFields(_StrictModel):
     image_storage: ImageStoragePatch = Field(default_factory=ImageStoragePatch)
     genbox_push: GenBoxPushPatch = Field(default_factory=GenBoxPushPatch)
     backup: BackupPatch = Field(default_factory=BackupPatch)
+    oauth: OAuthPatch = Field(default_factory=OAuthPatch)
     third_party_apps: ThirdPartyAppsSettings = Field(default_factory=ThirdPartyAppsSettings)
     user_daily_image_limit: int = Field(default=20, ge=0, le=10000)
     protocol_markdown: str = "# 用户协议\n\n请合理使用本服务。"
@@ -226,6 +253,7 @@ class SettingsValues(_SettingsEditableFields):
     image_storage: ImageStorageSettings = Field(default_factory=ImageStorageSettings)
     genbox_push: GenBoxPushSettings = Field(default_factory=GenBoxPushSettings)
     backup: BackupSettings = Field(default_factory=BackupSettings)
+    oauth: OAuthSettings = Field(default_factory=OAuthSettings)
 
 
 class SettingsPatch(_SettingsEditableFields):

@@ -1,21 +1,9 @@
 <template>
   <div class="flex min-h-0 flex-col space-y-4">
-    <div class="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <p class="ui-section-title">用户管理</p>
-        <p class="mt-1 text-xs text-muted-foreground">查看注册邮箱、用户名、登录时间和成功生图用量。</p>
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <Button size="sm" variant="outline" :disabled="userKeysLoading" @click="$emit('load')">
-          {{ userKeysLoading ? '刷新中...' : '刷新用户' }}
-        </Button>
-      </div>
-    </div>
-
     <MetricStrip
       :items="summaryItems"
       density="compact"
-      columns-class="grid-cols-2 xl:grid-cols-4"
+      columns-class="grid-cols-2 xl:grid-cols-5"
     />
 
     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -145,7 +133,6 @@ const props = defineProps<{
 }>()
 
 defineEmits<{
-  load: []
   'update:currentPage': [value: number]
   'update:pageSize': [value: number]
   edit: [item: UserKey]

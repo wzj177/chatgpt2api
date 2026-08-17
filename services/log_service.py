@@ -467,13 +467,11 @@ class LoggedCall:
     def reserve_image_quota(self, requested: int) -> None:
         if str(self.identity.get("role") or "") != "user" or not self._is_image_request():
             return
-        from services.config import config
         from services.image_quota_service import reserve_user_image_quota
 
         self.image_quota_reservation_id = reserve_user_image_quota(
             str(self.identity.get("id") or ""),
             requested,
-            config.user_daily_image_limit,
         )
 
     def _finish_image_quota(self, status: str, urls: list[str]) -> None:

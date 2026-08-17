@@ -74,6 +74,14 @@ class PublicProtocolView(_StrictModel):
     revision: str
 
 
+class OAuthProviderView(_StrictModel):
+    enabled: bool = False
+
+
+class OAuthExchangeRequest(_StrictModel):
+    code: str = Field(min_length=1, max_length=256)
+
+
 class UserKeyUpdateRequest(_StrictModel):
     name: str | None = None
     enabled: bool | None = None

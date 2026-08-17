@@ -30,7 +30,7 @@
 
         <FormField label="用户每日成功生图上限">
           <template #label-extra>
-            <HelpTip text="按用户统计每天成功生成的图片数量；设置为 0 表示不限制。" />
+            <HelpTip text="进入设置页时按账号池剩余额度、启用用户数和图片保留天数自动计算，最低每天 2 张。" />
           </template>
           <SettingsNumberInput :field="userDailyImageLimitField" />
         </FormField>

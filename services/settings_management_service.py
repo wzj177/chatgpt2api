@@ -16,6 +16,8 @@ from contracts.settings import (
     GenBoxPushSettings,
     ImageStorageSettings,
     InfiniteCanvasSettings,
+    LinuxDoOAuthSettings,
+    OAuthSettings,
     PublicInfiniteCanvasSettings,
     PublicThirdPartyAppsView,
     PublicThirdPartyAppsSettings,
@@ -37,6 +39,7 @@ from services.config import (
     DEFAULT_BACKUP_INCLUDE,
     DEFAULT_GENBOX_PUSH,
     DEFAULT_IMAGE_STORAGE,
+    DEFAULT_OAUTH,
     DEFAULT_PROXY_RUNTIME,
     DEFAULT_PROXY_RUNTIME_USER_AGENT,
     DEFAULT_THIRD_PARTY_APPS,
@@ -75,6 +78,7 @@ _MANAGED_TOP_LEVEL_FIELDS = (
     "image_storage",
     "genbox_push",
     "backup",
+    "oauth",
     "third_party_apps",
     "user_daily_image_limit",
     "protocol_markdown",
@@ -88,6 +92,7 @@ _SENSITIVE_PATHS = (
     ("backup", "passphrase"),
     ("proxy_runtime", "clearance", "cf_cookies"),
     ("proxy_runtime", "clearance", "cf_clearance"),
+    ("oauth", "linuxdo", "client_secret"),
 )
 
 
@@ -261,7 +266,10 @@ _FIELD_SPECS: dict[str, dict[str, Any]] = {
     "auto_remove_rate_limited_accounts": _field_metadata(False),
     "log_levels": _field_metadata([], options=("debug", "info", "warning", "error")),
     "global_system_prompt": _field_metadata(""),
-    "user_daily_image_limit": _numeric_field_metadata("user_daily_image_limit"),
+    "user_daily_image_limit": {
+        **_numeric_field_metadata("user_daily_image_limit"),
+        "read_only": True,
+    },
     "protocol_markdown": _field_metadata("# 用户协议\n\n请合理使用本服务。"),
     "sensitive_words": _field_metadata([]),
     "ai_review.enabled": _field_metadata(False),
@@ -299,6 +307,13 @@ _FIELD_SPECS: dict[str, dict[str, Any]] = {
     },
     "third_party_apps.infinite_canvas.enabled": _field_metadata(False),
     "third_party_apps.infinite_canvas.url": _field_metadata("https://canvas.best"),
+    "oauth.linuxdo.enabled": _field_metadata(False),
+    "oauth.linuxdo.client_id": _field_metadata(""),
+    "oauth.linuxdo.client_secret": _field_metadata("", sensitive=True),
+    "oauth.linuxdo.authorization_endpoint": _field_metadata(DEFAULT_OAUTH["linuxdo"]["authorization_endpoint"]),
+    "oauth.linuxdo.token_endpoint": _field_metadata(DEFAULT_OAUTH["linuxdo"]["token_endpoint"]),
+    "oauth.linuxdo.user_endpoint": _field_metadata(DEFAULT_OAUTH["linuxdo"]["user_endpoint"]),
+    "oauth.linuxdo.oidc_discovery": _field_metadata(DEFAULT_OAUTH["linuxdo"]["oidc_discovery"]),
 }
 
 
@@ -321,7 +336,7 @@ class SettingsManagementService:
             canvas = settings.third_party_apps.infinite_canvas
             return PublicThirdPartyAppsView(
                 api_base_url=settings.base_url,
-                user_daily_image_limit=settings.user_daily_image_limit,
+                user_daily_image_limit=config.user_daily_image_limit,
                 image_retention_hours=settings.image_retention_hours,
                 console_request_timeout_secs=settings.console_request_timeout_secs,
                 third_party_apps=PublicThirdPartyAppsSettings(
@@ -454,6 +469,10 @@ class SettingsManagementService:
         backup = _dict(effective.get("backup"))
         stored_backup = _dict(stored.get("backup"))
         backup_include = _dict(backup.get("include"))
+        oauth = _dict(effective.get("oauth"))
+        stored_oauth = _dict(stored.get("oauth"))
+        linuxdo_oauth = _dict(oauth.get("linuxdo"))
+        stored_linuxdo_oauth = _dict(stored_oauth.get("linuxdo"))
         third_party_apps = _dict(effective.get("third_party_apps"))
         infinite_canvas = _dict(third_party_apps.get("infinite_canvas"))
 
@@ -502,7 +521,7 @@ class SettingsManagementService:
                 "log_retention_hours",
                 effective.get("log_retention_hours"),
             ),
-            user_daily_image_limit=normalize_integer_setting("user_daily_image_limit", effective.get("user_daily_image_limit")),
+            user_daily_image_limit=config.user_daily_image_limit,
             protocol_markdown=_text(effective.get("protocol_markdown"), "# 用户协议\n\n请合理使用本服务。"),
             console_request_timeout_secs=normalize_integer_setting(
                 "console_request_timeout_secs",
@@ -614,6 +633,30 @@ class SettingsManagementService:
                     key: _bool(backup_include.get(key), bool(default))
                     for key, default in DEFAULT_BACKUP_INCLUDE.items()
                 }),
+            ),
+            oauth=OAuthSettings(
+                linuxdo=LinuxDoOAuthSettings(
+                    enabled=_bool(linuxdo_oauth.get("enabled"), False),
+                    client_id=_text(linuxdo_oauth.get("client_id")),
+                    client_secret="",
+                    has_client_secret=bool(_text(stored_linuxdo_oauth.get("client_secret"))),
+                    authorization_endpoint=_url(
+                        linuxdo_oauth.get("authorization_endpoint"),
+                        str(DEFAULT_OAUTH["linuxdo"]["authorization_endpoint"]),
+                    ) or str(DEFAULT_OAUTH["linuxdo"]["authorization_endpoint"]),
+                    token_endpoint=_url(
+                        linuxdo_oauth.get("token_endpoint"),
+                        str(DEFAULT_OAUTH["linuxdo"]["token_endpoint"]),
+                    ) or str(DEFAULT_OAUTH["linuxdo"]["token_endpoint"]),
+                    user_endpoint=_url(
+                        linuxdo_oauth.get("user_endpoint"),
+                        str(DEFAULT_OAUTH["linuxdo"]["user_endpoint"]),
+                    ) or str(DEFAULT_OAUTH["linuxdo"]["user_endpoint"]),
+                    oidc_discovery=_url(
+                        linuxdo_oauth.get("oidc_discovery"),
+                        str(DEFAULT_OAUTH["linuxdo"]["oidc_discovery"]),
+                    ) or str(DEFAULT_OAUTH["linuxdo"]["oidc_discovery"]),
+                ),
             ),
             third_party_apps=ThirdPartyAppsSettings(
                 infinite_canvas=InfiniteCanvasSettings(

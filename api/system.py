@@ -19,7 +19,14 @@ from api.gallery_contract import (
     GalleryPage,
 )
 from api.monitor_contract import MonitorRecordDetailView, RealtimeMonitorView
-from contracts.auth import AuthView, PasswordLoginRequest, PublicProtocolView, RegisterRequest
+from contracts.auth import (
+    AuthView,
+    OAuthExchangeRequest,
+    OAuthProviderView,
+    PasswordLoginRequest,
+    PublicProtocolView,
+    RegisterRequest,
+)
 from contracts.models import ModelCatalogView
 from contracts.proxy import (
     ProxyDefaultsMutation,
@@ -66,6 +73,7 @@ from services.dashboard_view import build_dashboard_view
 from services.image_storage_service import ImageStorageError, image_storage_service
 from services.image_tags_service import set_tags
 from services.log_service import log_service
+from services.linuxdo_oauth_service import LinuxDoOAuthError, linuxdo_oauth_service
 from services.model_catalog_service import get_model_catalog
 from services.monitor_view import build_monitor_record_view, build_monitor_view
 from services.proxy_management_service import (
@@ -238,6 +246,50 @@ def create_router(app_version: str) -> APIRouter:
     async def public_protocol():
         view = await run_in_threadpool(settings_management_service.view)
         return {"markdown": view.settings.protocol_markdown, "revision": view.revision}
+
+    @router.get("/auth/oauth/linuxdo/config", response_model=OAuthProviderView)
+    async def linuxdo_oauth_config():
+        return OAuthProviderView(enabled=linuxdo_oauth_service.is_enabled())
+
+    @router.get("/auth/oauth/linuxdo/start")
+    async def linuxdo_oauth_start(request: Request):
+        redirect_uri = str(request.url_for("linuxdo_oauth_callback"))
+        try:
+            url = await run_in_threadpool(linuxdo_oauth_service.start, redirect_uri)
+        except LinuxDoOAuthError as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+        return {"authorization_url": url}
+
+    @router.get("/auth/oauth/linuxdo/callback", name="linuxdo_oauth_callback")
+    async def linuxdo_oauth_callback(
+        request: Request,
+        code: str = "",
+        state: str = "",
+        error: str = "",
+    ):
+        from fastapi.responses import RedirectResponse
+
+        redirect_uri = str(request.url_for("linuxdo_oauth_callback"))
+        if error:
+            return RedirectResponse(f"/#/login?oauth_error=授权被取消")
+        try:
+            exchange_code = await run_in_threadpool(
+                linuxdo_oauth_service.callback,
+                code=code,
+                state=state,
+                redirect_uri=redirect_uri,
+            )
+        except LinuxDoOAuthError:
+            return RedirectResponse("/#/login?oauth_error=第三方登录失败")
+        return RedirectResponse(f"/#/login?oauth_code={exchange_code}")
+
+    @router.post("/auth/oauth/linuxdo/exchange", response_model=AuthView)
+    async def linuxdo_oauth_exchange(body: OAuthExchangeRequest):
+        try:
+            identity, access_token = await run_in_threadpool(linuxdo_oauth_service.exchange, body.code)
+        except LinuxDoOAuthError as exc:
+            raise HTTPException(status_code=401, detail={"error": str(exc)}) from exc
+        return build_auth_view(app_version, identity).model_copy(update={"access_token": access_token})
 
     @router.get("/auth/status", response_model=AuthView)
     async def auth_status(authorization: str | None = Header(default=None)):

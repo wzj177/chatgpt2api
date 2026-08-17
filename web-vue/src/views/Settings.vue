@@ -135,6 +135,12 @@
         :genbox-timeout-seconds-field="genboxTimeoutSecondsField"
       />
 
+      <SettingsAuthorizationPanel
+        v-else-if="activeSettingsTab === 'authorization'"
+        :settings="localSettings"
+        :fields="settingsFields"
+      />
+
       <SettingsExternalSourcesPanel
         v-else-if="activeSettingsTab === 'cpa' || activeSettingsTab === 'sub2api'"
         :active-tab="activeSettingsTab"
@@ -307,6 +313,7 @@ import SettingsBackupPanel from '@/views/settings/SettingsBackupPanel.vue'
 import SettingsExternalSourceModals from '@/views/settings/SettingsExternalSourceModals.vue'
 import SettingsExternalSourcesPanel from '@/views/settings/SettingsExternalSourcesPanel.vue'
 import SettingsIntegrationsPanel from '@/views/settings/SettingsIntegrationsPanel.vue'
+import SettingsAuthorizationPanel from '@/views/settings/SettingsAuthorizationPanel.vue'
 import SettingsPromptSourcesPanel from '@/views/settings/SettingsPromptSourcesPanel.vue'
 import SettingsStorageReviewPanel from '@/views/settings/SettingsStorageReviewPanel.vue'
 import StudioMarkdownContent from '@/components/studio/StudioMarkdownContent.vue'
