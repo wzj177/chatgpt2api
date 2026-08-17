@@ -96,6 +96,7 @@ class AuthService:
             "usage_count": max(0, int(raw.get("usage_count") or 0)),
             "daily_image_date": self._clean(raw.get("daily_image_date")) or None,
             "daily_image_count": max(0, int(raw.get("daily_image_count") or 0)),
+            "daily_image_bonus": max(0, int(raw.get("daily_image_bonus") or 0)),
             "login_count": max(0, int(raw.get("login_count") or 0)),
             "oauth_provider": oauth_provider,
             "oauth_subject": self._clean(raw.get("oauth_subject")) or None,
@@ -221,6 +222,11 @@ class AuthService:
             if str(item.get("daily_image_date") or "") == _today_iso()
             else 0
         )
+        daily_image_bonus = (
+            max(0, int(item.get("daily_image_bonus") or 0))
+            if str(item.get("daily_image_date") or "") == _today_iso()
+            else 0
+        )
         source = str(item.get("oauth_provider") or item.get("registration_source") or ("email" if item.get("email") else "admin"))
         source_label = {
             "email": "邮箱注册",
@@ -238,6 +244,7 @@ class AuthService:
             "phone": item.get("phone"),
             "usage_count": int(item.get("usage_count") or 0),
             "daily_image_count": daily_image_count,
+            "daily_image_bonus": daily_image_bonus,
             "login_count": int(item.get("login_count") or 0),
             "registration_source": source,
             "registration_source_label": source_label,
@@ -263,6 +270,15 @@ class AuthService:
         source = self._clean(registration_source).lower()
         if source and source != "all":
             items = [item for item in items if self._clean(item.get("registration_source")).lower() == source]
+        daily_limit = max(0, int(config.user_daily_image_limit or 0))
+        for item in items:
+            daily_image_count = max(0, int(item.get("daily_image_count") or 0))
+            daily_image_bonus = max(0, int(item.get("daily_image_bonus") or 0))
+            item["daily_image_remaining"] = max(
+                0,
+                daily_limit + daily_image_bonus - daily_image_count,
+            )
+            item["daily_image_base_remaining"] = max(0, daily_limit - daily_image_count)
         start = (safe_page - 1) * safe_page_size
         return {
             "items": items[start:start + safe_page_size],
@@ -684,6 +700,11 @@ class AuthService:
                 if self._clean(item.get("daily_image_date")) == _today_iso()
                 else 0
             )
+            bonus = (
+                max(0, int(item.get("daily_image_bonus") or 0))
+                if self._clean(item.get("daily_image_date")) == _today_iso()
+                else 0
+            )
             user_reserved = sum(
                 reserved_count
                 for reserved_user_id, reserved_count in self._image_quota_reservations.values()
@@ -693,8 +714,9 @@ class AuthService:
                 reserved_count
                 for _reserved_user_id, reserved_count in self._image_quota_reservations.values()
             )
-            if normalized_limit and used + user_reserved + requested > normalized_limit:
-                raise ImageQuotaExceededError(f"今日生图额度已用尽（{normalized_limit} 张）")
+            effective_limit = normalized_limit + bonus
+            if effective_limit and used + user_reserved + requested > effective_limit:
+                raise ImageQuotaExceededError(f"今日生图额度已用尽（{effective_limit} 张）")
             if global_limit is not None and global_reserved + requested > max(0, int(global_limit)):
                 raise ImageQuotaExceededError("当前账号池剩余总额度不足，请稍后再试")
             reservation_id = uuid.uuid4().hex
@@ -743,9 +765,15 @@ class AuthService:
                     if self._clean(next_item.get("daily_image_date")) == today
                     else 0
                 )
+                current_bonus = (
+                    max(0, int(next_item.get("daily_image_bonus") or 0))
+                    if self._clean(next_item.get("daily_image_date")) == today
+                    else 0
+                )
                 next_item["usage_count"] = max(0, int(next_item.get("usage_count") or 0)) + increment
                 next_item["daily_image_date"] = today
                 next_item["daily_image_count"] = current_daily + increment
+                next_item["daily_image_bonus"] = current_bonus
                 try:
                     result = self.storage.mutate_auth_keys(
                         StorageMutation(
@@ -760,6 +788,49 @@ class AuthService:
                 self._set_cached_item_locked(next_item, result.revision)
                 return self._public_item(next_item)
         return None
+
+    def add_daily_image_bonus(self, user_ids: list[str], count: int) -> list[dict[str, object]]:
+        normalized_ids = list(dict.fromkeys(self._clean(value) for value in user_ids if self._clean(value)))
+        increment = int(count or 0)
+        if not normalized_ids:
+            raise ValueError("请至少选择一个用户")
+        if increment < 1 or increment > 10000:
+            raise ValueError("增加次数必须在 1 到 10000 之间")
+        with self._lock:
+            for attempt in range(_CAS_ATTEMPTS):
+                self._reload_locked()
+                today = _today_iso()
+                selected = set(normalized_ids)
+                items = [item for item in self._items if item.get("role") == "user" and self._clean(item.get("id")) in selected]
+                if len(items) != len(selected):
+                    raise ValueError("部分用户不存在或已被删除，请刷新后重试")
+                updates = []
+                for item in items:
+                    next_item = dict(item)
+                    current_bonus = (
+                        max(0, int(item.get("daily_image_bonus") or 0))
+                        if self._clean(item.get("daily_image_date")) == today
+                        else 0
+                    )
+                    next_item["daily_image_date"] = today
+                    next_item["daily_image_bonus"] = current_bonus + increment
+                    updates.append(next_item)
+                try:
+                    result = self.storage.mutate_auth_keys(
+                        StorageMutation(upserts=tuple(updates), expected_revision=self._revision)
+                    )
+                except StorageRevisionConflictError:
+                    if attempt + 1 >= _CAS_ATTEMPTS:
+                        raise
+                    continue
+                self._items = [
+                    next_item if self._clean(next_item.get("id")) in selected else next_item
+                    for next_item in self._items
+                ]
+                for next_item in updates:
+                    self._set_cached_item_locked(next_item, result.revision)
+                return [self._public_item(item) for item in updates]
+        raise RuntimeError("批量调整用户额度失败")
 
 
 auth_service = AuthService(config.get_storage_backend())

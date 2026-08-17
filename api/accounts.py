@@ -19,6 +19,8 @@ from contracts.auth import (
     UserKeyListView,
     UserKeyUpdateRequest,
     UserKeyUpdateResult,
+    UserDailyImageAdjustmentRequest,
+    UserDailyImageAdjustmentResult,
 )
 from contracts.account_test import AccountTestRequest, AccountTestResult
 from services.auth_service import auth_service
@@ -1169,6 +1171,27 @@ def create_router() -> APIRouter:
             page=page,
             page_size=page_size,
         )
+
+    @router.post("/api/auth/users/daily-image-adjustment", response_model=UserDailyImageAdjustmentResult)
+    async def adjust_user_daily_images(
+        body: UserDailyImageAdjustmentRequest,
+        authorization: str | None = Header(default=None),
+    ):
+        require_admin(authorization)
+        try:
+            items = await run_in_threadpool(auth_service.add_daily_image_bonus, body.user_ids, body.count)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+        daily_limit = max(0, int(config.user_daily_image_limit or 0))
+        for item in items:
+            daily_image_count = max(0, int(item.get("daily_image_count") or 0))
+            daily_image_bonus = max(0, int(item.get("daily_image_bonus") or 0))
+            item["daily_image_remaining"] = max(
+                0,
+                daily_limit + daily_image_bonus - daily_image_count,
+            )
+            item["daily_image_base_remaining"] = max(0, daily_limit - daily_image_count)
+        return {"items": items, "count": body.count}
 
     @router.post("/api/auth/users/{key_id}", response_model=UserKeyUpdateResult)
     async def update_user_key(

@@ -11,6 +11,9 @@ export interface UserKey {
   phone?: string | null
   usage_count: number
   daily_image_count: number
+  daily_image_bonus: number
+  daily_image_remaining: number
+  daily_image_base_remaining: number
   login_count: number
   registration_source: string
   registration_source_label: string
@@ -37,6 +40,11 @@ export interface UserKeyDeleteResponse {
   deleted_id: string
 }
 
+export interface UserDailyImageAdjustmentResponse {
+  items: UserKey[]
+  count: number
+}
+
 export interface UserStats {
   total_registered: number
   active_today: number
@@ -58,4 +66,10 @@ export const userKeysApi = {
 
   delete: (keyId: string) =>
     apiClient.delete<never, UserKeyDeleteResponse>(`/api/auth/users/${keyId}`),
+
+  adjustDailyImages: (userIds: string[], count: number) =>
+    apiClient.post<{ user_ids: string[]; count: number }, UserDailyImageAdjustmentResponse>(
+      '/api/auth/users/daily-image-adjustment',
+      { user_ids: userIds, count },
+    ),
 }

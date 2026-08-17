@@ -32,6 +32,7 @@
         @edit="openUserKeyEditModal"
         @toggle="toggleUserKey"
         @delete="deleteUserKey"
+        @adjust-daily-images="adjustDailyImages"
       />
     </PagePanel>
 
@@ -80,6 +81,7 @@ const openUserKeyEditModal = userKeysRuntime.openUserKeyEditModal
 const closeUserKeyModal = userKeysRuntime.closeUserKeyModal
 const loadUserKeys = userKeysRuntime.loadUserKeys
 const updateUserKey = userKeysRuntime.updateUserKey
+const adjustDailyImages = userKeysRuntime.adjustDailyImages
 const toggleUserKey = userKeysRuntime.toggleUserKey
 const deleteUserKey = userKeysRuntime.deleteUserKey
 

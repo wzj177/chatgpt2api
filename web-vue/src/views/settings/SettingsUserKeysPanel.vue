@@ -7,7 +7,10 @@
     />
 
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <p class="text-xs text-muted-foreground">共 {{ userKeysTotal }} 位用户</p>
+      <div class="flex items-center gap-3">
+        <p class="text-xs text-muted-foreground">共 {{ userKeysTotal }} 位用户</p>
+        <span v-if="selectedIds.length" class="text-xs text-muted-foreground">已选 {{ selectedIds.length }} 位</span>
+      </div>
       <ConsoleSegmentedTabs
         v-model="sortMode"
         class="max-w-xs"
@@ -22,6 +25,15 @@
         :options="registrationSourceOptions"
         aria-label="注册来源筛选"
       />
+    </div>
+
+    <div v-if="selectedIds.length" class="flex flex-wrap items-center gap-3 rounded-md border border-border bg-muted/20 p-3">
+      <span class="text-xs text-muted-foreground">增加今日剩余次数</span>
+      <Input v-model="bonusCount" type="number" min="1" max="10000" class="w-24" aria-label="增加今日次数" />
+      <Button size="sm" variant="primary" :disabled="userKeyBusy !== ''" @click="adjustSelectedUsers">
+        {{ userKeyBusy === 'bulk-daily-image' ? '调整中...' : '确认增加' }}
+      </Button>
+      <Button size="sm" variant="outline" :disabled="userKeyBusy !== ''" @click="selectedIds = []">取消选择</Button>
     </div>
 
     <PageLoadingState v-if="userKeysLoading" compact title="正在加载用户" description="读取用户列表和用量统计。" />
@@ -43,7 +55,10 @@
     >
       <template #head>
         <tr>
-          <th class="w-[27%] py-3 pl-4 pr-5">用户</th>
+          <th class="w-[27%] py-3 pl-4 pr-5">
+            <Checkbox :model-value="allVisibleSelected" aria-label="选择当前页用户" @update:model-value="toggleAllVisible" />
+            <span class="ml-2">用户</span>
+          </th>
           <th class="w-[20%] py-3 pr-5">注册与登录</th>
           <th class="w-[13%] py-3 pr-5">注册来源</th>
           <th class="w-[18%] py-3 pr-5">成功生图</th>
@@ -57,6 +72,7 @@
         class="border-b border-border last:border-b-0"
       >
         <td class="min-w-0 py-3 pl-4 pr-5 align-top">
+          <Checkbox :model-value="selectedIds.includes(item.id)" :aria-label="`选择${item.name || item.id}`" @update:model-value="toggleUser(item.id, $event)" />
           <div class="flex flex-wrap items-center gap-2">
             <p class="truncate text-sm font-medium text-foreground">{{ item.name || '普通用户' }}</p>
             <StateBadge :tone="item.enabled ? 'success' : 'muted'" size="xs" shape="rounded">
@@ -80,10 +96,16 @@
         </td>
 
         <td class="py-3 pr-5 align-top text-xs">
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-3 gap-3">
             <div>
               <p class="text-muted-foreground">今日成功</p>
               <p class="mt-1 font-semibold tabular-nums text-foreground">{{ item.daily_image_count || 0 }}</p>
+            </div>
+            <div>
+              <p class="text-muted-foreground">当日剩余</p>
+              <p class="mt-1 font-semibold tabular-nums text-foreground">{{ item.daily_image_remaining || 0 }}</p>
+              <p class="mt-1 text-xs text-muted-foreground">当日可用 {{ item.daily_image_base_remaining || 0 }}</p>
+              <p v-if="item.daily_image_bonus" class="mt-1 text-xs text-emerald-600">额外 +{{ item.daily_image_bonus }}</p>
             </div>
             <div>
               <p class="text-muted-foreground">累计成功</p>
@@ -121,7 +143,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Button, TableShell } from 'nanocat-ui'
+import { Button, Checkbox, Input, TableShell } from 'nanocat-ui'
 import type { SegmentedValue } from 'nanocat-ui'
 import ListPagination from '@/components/ai/ListPagination.vue'
 import type { UserKey, UserStats } from '@/api/userKeys'
@@ -152,9 +174,40 @@ const emit = defineEmits<{
   edit: [item: UserKey]
   toggle: [item: UserKey]
   delete: [item: UserKey]
+  adjustDailyImages: [userIds: string[], count: number]
 }>()
 
 const sortMode = ref<SegmentedValue>('last_used')
+const selectedIds = ref<string[]>([])
+const bonusCount = ref(1)
+const allVisibleSelected = computed(() => (
+  props.userKeys.length > 0 && props.userKeys.every(item => selectedIds.value.includes(item.id))
+))
+
+function toggleUser(userId: string, selected: boolean) {
+  selectedIds.value = selected
+    ? Array.from(new Set([...selectedIds.value, userId]))
+    : selectedIds.value.filter(id => id !== userId)
+}
+
+function toggleAllVisible(selected: boolean) {
+  const visibleIds = props.userKeys.map(item => item.id)
+  selectedIds.value = selected
+    ? Array.from(new Set([...selectedIds.value, ...visibleIds]))
+    : selectedIds.value.filter(id => !visibleIds.includes(id))
+}
+
+function adjustSelectedUsers() {
+  const count = Math.trunc(Number(bonusCount.value))
+  if (!Number.isFinite(count) || count < 1 || count > 10000) return
+  emit('adjustDailyImages', [...selectedIds.value], count)
+}
+
+watch(() => props.userKeys, () => {
+  const visibleIds = new Set(props.userKeys.map(item => item.id))
+  selectedIds.value = selectedIds.value.filter(id => visibleIds.has(id))
+}, { deep: false })
+
 const registrationSourceMode = ref<SegmentedValue>(props.registrationSource as SegmentedValue)
 watch(() => props.registrationSource, (value) => {
   if (value !== String(registrationSourceMode.value)) {

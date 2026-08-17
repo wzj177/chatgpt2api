@@ -103,6 +103,9 @@ class UserKeyView(_StrictModel):
     phone: str | None = None
     usage_count: int = 0
     daily_image_count: int = 0
+    daily_image_bonus: int = 0
+    daily_image_remaining: int = 0
+    daily_image_base_remaining: int = 0
     login_count: int = 0
     registration_source: str = "email"
     registration_source_label: str = "邮箱注册"
@@ -121,3 +124,13 @@ class UserKeyUpdateResult(_StrictModel):
 
 class UserKeyDeleteResult(_StrictModel):
     deleted_id: str
+
+
+class UserDailyImageAdjustmentRequest(_StrictModel):
+    user_ids: list[str] = Field(min_length=1, max_length=100)
+    count: int = Field(ge=1, le=10000)
+
+
+class UserDailyImageAdjustmentResult(_StrictModel):
+    items: list[UserKeyView] = Field(default_factory=list)
+    count: int = Field(ge=1)
