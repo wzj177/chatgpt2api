@@ -260,7 +260,9 @@ def create_router(app_version: str) -> APIRouter:
             raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
         return {"authorization_url": url}
 
-    @router.get("/oauth2/linuxdo/callback", name="linuxdo_oauth_callback")
+    @router.get("/api/oauth2/linuxdo/callback", name="linuxdo_oauth_callback")
+    @router.get("/oauth2/linuxdo/callback", name="linuxdo_oauth_alias_callback")
+    @router.get("/api/auth/oauth/linuxdo/callback", name="linuxdo_oauth_api_legacy_callback")
     @router.get("/auth/oauth/linuxdo/callback", name="linuxdo_oauth_legacy_callback")
     async def linuxdo_oauth_callback(
         request: Request,
