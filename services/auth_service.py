@@ -592,18 +592,23 @@ class AuthService:
             raise ValueError("第三方登录未返回完整用户身份")
         with self._lock:
             self._reload_locked()
-            index = next(
-                (
-                    idx for idx, item in enumerate(self._items)
-                    if item.get("role") == "user"
-                    and (
-                        (self._clean(item.get("oauth_provider")) == provider
-                         and self._clean(item.get("oauth_subject")) == subject)
-                        or self._clean(item.get("email")).lower() == email
-                    )
-                ),
-                None,
-            )
+            provider_matches = [
+                idx for idx, item in enumerate(self._items)
+                if item.get("role") == "user"
+                and self._clean(item.get("oauth_provider")) == provider
+                and self._clean(item.get("oauth_subject")) == subject
+            ]
+            email_matches = [
+                idx for idx, item in enumerate(self._items)
+                if self._clean(item.get("email")).lower() == email
+            ]
+            if len(provider_matches) > 1 or len(email_matches) > 1:
+                raise ValueError("第三方登录身份数据重复，请联系管理员处理")
+            if email_matches and self._items[email_matches[0]].get("role") != "user":
+                raise ValueError("该邮箱已被管理员账号占用，无法绑定第三方登录")
+            if provider_matches and email_matches and provider_matches[0] != email_matches[0]:
+                raise ValueError("第三方登录身份与邮箱已绑定到不同用户")
+            index = provider_matches[0] if provider_matches else (email_matches[0] if email_matches else None)
             raw_key = f"sk-{secrets.token_urlsafe(24)}"
             if index is None:
                 item = {
@@ -636,7 +641,8 @@ class AuthService:
                 item["name"] = item.get("name") or username
                 item["oauth_provider"] = provider
                 item["oauth_subject"] = subject
-                item["registration_source"] = provider
+                if not self._clean(item.get("registration_source")):
+                    item["registration_source"] = provider
             result = self.storage.mutate_auth_keys(
                 StorageMutation(upserts=(item,), expected_revision=self._revision)
             )

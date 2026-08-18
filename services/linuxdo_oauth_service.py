@@ -185,6 +185,14 @@ class LinuxDoOAuthService:
                 email=email,
                 username=username,
             )
+        except ValueError as exc:
+            logger.warning({
+                "event": "linuxdo_oauth_callback_failed",
+                "stage": "user_persist",
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+            })
+            raise LinuxDoOAuthError(str(exc)) from exc
         except Exception as exc:
             logger.error({
                 "event": "linuxdo_oauth_callback_failed",

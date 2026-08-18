@@ -244,7 +244,8 @@ def create_router(app_version: str) -> APIRouter:
                 terms_accepted=body.accepted_terms,
             )
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
+            status_code = 409 if "邮箱已经注册" in str(exc) else 400
+            raise HTTPException(status_code=status_code, detail={"error": str(exc)}) from exc
         return build_auth_view(app_version, identity).model_copy(update={"access_token": access_token})
 
     @router.get("/auth/protocol", response_model=PublicProtocolView)
