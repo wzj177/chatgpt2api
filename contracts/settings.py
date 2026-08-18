@@ -241,6 +241,7 @@ class _SettingsEditableFields(_StrictModel):
     oauth: OAuthPatch = Field(default_factory=OAuthPatch)
     third_party_apps: ThirdPartyAppsSettings = Field(default_factory=ThirdPartyAppsSettings)
     user_daily_image_limit: int = Field(default=20, ge=0, le=10000)
+    user_daily_image_limit_auto: bool = True
     protocol_markdown: str = "# 用户协议\n\n请合理使用本服务。"
 
     @field_validator("log_levels")

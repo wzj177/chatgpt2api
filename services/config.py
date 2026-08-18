@@ -22,6 +22,7 @@ from services.storage.configuration_repository import (
     account_group_repository,
     system_settings_repository,
 )
+from utils.timezone import beijing_now, parse_to_beijing_naive
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
@@ -529,15 +530,26 @@ class ConfigStore:
             "user_daily_image_limit",
             self.data.get("user_daily_image_limit", 20),
         )
+        if not _normalize_bool(self.data.get("user_daily_image_limit_auto"), True):
+            return configured
         try:
             from services.account_service import account_service
             from services.auth_service import auth_service
 
             account_stats = account_service.get_stats()
             users = auth_service.list_keys(role="user")
-            enabled_users = max(1, sum(1 for item in users if bool(item.get("enabled", True))))
+            today = beijing_now().date()
+            active_users = sum(
+                1
+                for item in users
+                if bool(item.get("enabled", True))
+                and max(0, int(item.get("usage_count") or 0)) >= 2
+                and (last_used := parse_to_beijing_naive(item.get("last_used_at"))) is not None
+                and last_used.date() == today
+            )
+            active_users = max(1, active_users)
             retention_days = max(1, math.ceil(self.image_retention_hours / 24))
-            fair_share = max(0, int(account_stats.get("total_quota") or 0)) // enabled_users // retention_days
+            fair_share = max(0, int(account_stats.get("total_quota") or 0)) // active_users // retention_days
             return max(2, fair_share)
         except Exception:
             # Settings must remain readable during early startup or degraded account storage.

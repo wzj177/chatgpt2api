@@ -69,6 +69,7 @@ export interface Settings {
   refresh_account_interval_minute: number
   image_retention_hours: number
   user_daily_image_limit: number
+  user_daily_image_limit_auto: boolean
   protocol_markdown: string
   log_retention_hours: number
   console_request_timeout_secs: number

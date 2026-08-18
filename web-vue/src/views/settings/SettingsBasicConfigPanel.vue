@@ -28,11 +28,16 @@
           <SettingsNumberInput :field="imageRetentionHoursField" />
         </FormField>
 
-        <FormField label="用户每日成功生图上限">
+        <FormField label="用户每日成功生图上限（建议）">
           <template #label-extra>
-            <HelpTip text="进入设置页时按账号池剩余额度、启用用户数和图片保留天数自动计算，最低每天 2 张。" />
+            <HelpTip text="自动模式按账号池额度、今日登录且累计成功生图不少于 2 次的用户数和图片保留天数计算，最低每天 2 张；关闭后使用手动填写的上限。" />
           </template>
-          <SettingsNumberInput :field="userDailyImageLimitField" />
+          <div class="space-y-2">
+            <SettingsNumberInput :field="userDailyImageLimitField" :disabled="settings.user_daily_image_limit_auto" />
+            <Checkbox v-model="settings.user_daily_image_limit_auto">
+              自动计算建议值
+            </Checkbox>
+          </div>
         </FormField>
 
         <FormField label="日志自动清理">
@@ -105,7 +110,7 @@
 </template>
 
 <script setup lang="ts">
-import { FormField, FormSection, HelpTip, Input } from 'nanocat-ui'
+import { Checkbox, FormField, FormSection, HelpTip, Input } from 'nanocat-ui'
 import type { Settings } from '@/types/api'
 import SettingsNumberInput from '@/views/settings/SettingsNumberInput.vue'
 import { settingsFieldReadOnly, type SettingsFields } from '@/views/settings/settingsView'
