@@ -179,6 +179,21 @@
             </div>
           </div>
           <div class="ml-auto flex shrink-0 items-center gap-[12px]">
+            <div
+              v-if="authStore.subject && !authStore.isAdmin"
+              class="hidden min-w-0 max-w-[14rem] flex-col items-end leading-tight sm:flex"
+              :title="`${authStore.subject.name} · ${authStore.subject.email || '未绑定邮箱'} · 注册于 ${formatDateTime(authStore.subject.created_at)}`"
+            >
+              <span class="max-w-full truncate text-xs font-medium text-foreground">
+                {{ authStore.subject.name }}
+              </span>
+              <span class="max-w-full truncate text-[11px] text-muted-foreground">
+                {{ authStore.subject.email || '未绑定邮箱' }}
+              </span>
+              <span class="text-[10px] text-muted-foreground">
+                注册于 {{ formatDateTime(authStore.subject.created_at) }}
+              </span>
+            </div>
             <div class="flex items-center gap-[8px]">
               <Tooltip :text="themeButtonTitle" placement="bottom">
                 <Button
@@ -691,6 +706,7 @@ import {
 } from '@/lib/release'
 import type { UpdateTaskResponse, VersionCheckResponse } from '@/types/api'
 import localVersion from '../../../VERSION?raw'
+import { formatDateTime } from '@/views/settings/settingsView'
 
 const route = useRoute()
 const router = useRouter()

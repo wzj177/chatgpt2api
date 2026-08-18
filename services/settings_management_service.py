@@ -82,6 +82,7 @@ _MANAGED_TOP_LEVEL_FIELDS = (
     "third_party_apps",
     "user_daily_image_limit",
     "user_daily_image_limit_auto",
+    "service_button_enabled",
     "protocol_markdown",
 )
 
@@ -271,6 +272,7 @@ _FIELD_SPECS: dict[str, dict[str, Any]] = {
         **_numeric_field_metadata("user_daily_image_limit"),
     },
     "user_daily_image_limit_auto": _field_metadata(True),
+    "service_button_enabled": _field_metadata(False),
     "protocol_markdown": _field_metadata("# 用户协议\n\n请合理使用本服务。"),
     "sensitive_words": _field_metadata([]),
     "ai_review.enabled": _field_metadata(False),
@@ -525,6 +527,7 @@ class SettingsManagementService:
             ),
             user_daily_image_limit=config.user_daily_image_limit,
             user_daily_image_limit_auto=_bool(effective.get("user_daily_image_limit_auto"), True),
+            service_button_enabled=_bool(effective.get("service_button_enabled"), False),
             protocol_markdown=_text(effective.get("protocol_markdown"), "# 用户协议\n\n请合理使用本服务。"),
             console_request_timeout_secs=normalize_integer_setting(
                 "console_request_timeout_secs",

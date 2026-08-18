@@ -7,6 +7,8 @@ export interface AuthSubject {
   id: string
   name: string
   role: AuthRole
+  email?: string | null
+  created_at?: string | null
 }
 
 export interface AuthCapabilities {

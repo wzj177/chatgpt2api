@@ -40,6 +40,15 @@
           </div>
         </FormField>
 
+        <FormField label="交流与服务按钮">
+          <template #label-extra>
+            <HelpTip text="开启后普通用户登录后可以看到交流与服务按钮；默认关闭，管理员不显示此按钮。" />
+          </template>
+          <Checkbox v-model="settings.service_button_enabled">
+            对普通用户开放
+          </Checkbox>
+        </FormField>
+
         <FormField label="日志自动清理">
           <template #label-extra>
             <HelpTip text="自动删除多少小时前的控制台调用日志。" />

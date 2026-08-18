@@ -70,6 +70,7 @@ export interface Settings {
   image_retention_hours: number
   user_daily_image_limit: number
   user_daily_image_limit_auto: boolean
+  service_button_enabled: boolean
   protocol_markdown: string
   log_retention_hours: number
   console_request_timeout_secs: number

@@ -524,6 +524,11 @@ class ConfigStore:
         )
 
     @property
+    def service_button_enabled(self) -> bool:
+        self.reload_if_changed()
+        return _normalize_bool(self.data.get("service_button_enabled"), False)
+
+    @property
     def user_daily_image_limit(self) -> int:
         self.reload_if_changed()
         configured = normalize_integer_setting(
