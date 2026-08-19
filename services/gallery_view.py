@@ -48,6 +48,8 @@ def _unique_texts(values: object) -> list[str]:
 
 
 def _storage(item: Mapping[str, object]) -> tuple[str, bool, bool]:
+    if bool(item.get("expired")):
+        return "expired", False, False
     local = bool(item.get("local", True))
     webdav = bool(item.get("webdav", False))
     explicit = _text(item.get("storage")).lower()
@@ -80,9 +82,7 @@ def gallery_row(
     path = _text(item.get("path") or item.get("rel") or item.get("name"))
     filename = _text(item.get("name") or item.get("filename")) or Path(path).name
     storage, local, webdav = _storage(item)
-    expired, expires_at, expires_in_seconds = (
-        _expiry(item, retention_hours) if local else (False, None, None)
-    )
+    expired, expires_at, expires_in_seconds = _expiry(item, retention_hours)
     owner_id = _text(item.get("owner_id")) or "anonymous"
     query = signed_image_query(path, owner_id)
     return {

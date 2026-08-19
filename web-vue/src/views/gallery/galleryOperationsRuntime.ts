@@ -116,7 +116,7 @@ export function useGalleryOperationsRuntime(options: GalleryOperationsRuntimeOpt
   async function handleCleanupExpired() {
     const confirmed = await options.confirmDialog.ask({
       title: '清理过期图片',
-      message: '将清理已过期图片的本地副本；仍有 WebDAV 副本的图库记录会保留。此操作不可恢复，确定继续吗？',
+      message: '将删除已过期图片的本地和 WebDAV 文件，但保留图库记录并标记为已过期。此操作不可恢复，确定继续吗？',
       confirmText: '清理过期',
       cancelText: '取消',
     })

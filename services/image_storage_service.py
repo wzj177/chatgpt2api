@@ -807,10 +807,14 @@ class ImageStorageService:
                     local = local_path.is_file()
                     webdav = bool(item.get("webdav"))
                     if not local and not webdav:
-                        indexed.pop(rel, None)
-                        changed = True
-                        continue
-                    storage = "both" if local and webdav else ("webdav" if webdav else "local")
+                        if not bool(item.get("expired")):
+                            indexed.pop(rel, None)
+                            changed = True
+                            continue
+                    if not local and not webdav:
+                        storage = "expired"
+                    else:
+                        storage = "both" if local and webdav else ("webdav" if webdav else "local")
                     local_size: int | None = None
                     if local:
                         try:
@@ -818,10 +822,6 @@ class ImageStorageService:
                         except OSError:
                             local = False
                             storage = "webdav" if webdav else "local"
-                    if not local and not webdav:
-                        indexed.pop(rel, None)
-                        changed = True
-                        continue
                     indexed_size = item.get("size")
                     size_changed = (
                         local_size is not None
@@ -965,6 +965,8 @@ class ImageStorageService:
         self,
         planned: dict[str, dict[str, object]],
         results: dict[str, DeleteMutationResult],
+        *,
+        preserve_catalog: bool = False,
     ) -> None:
         with self._item_guards(planned):
             with self._index_guard():
@@ -985,7 +987,17 @@ class ImageStorageService:
                     result = results.get(rel)
                     if result is not None and result.completed and generation_matches:
                         if current is not None:
-                            items.pop(rel, None)
+                            if preserve_catalog:
+                                items[rel] = {
+                                    **current,
+                                    "local": False,
+                                    "webdav": False,
+                                    "storage": "expired",
+                                    "expired": True,
+                                    "remote_sync_pending": False,
+                                }
+                            else:
+                                items.pop(rel, None)
                             catalog_changed = True
                     if (
                         result is None
@@ -999,7 +1011,7 @@ class ImageStorageService:
                 if pending_changed:
                     self._save_remote_delete_pending(pending)
 
-    def delete_many(self, rels: list[str]) -> set[str]:
+    def delete_many(self, rels: list[str], *, preserve_catalog: bool = False) -> set[str]:
         safe_rels = list(dict.fromkeys(normalize_image_relative_path(rel) for rel in rels))
         if not safe_rels:
             return set()
@@ -1052,7 +1064,11 @@ class ImageStorageService:
                     rel for rel, result in results.items() if result.removed
                 )
                 try:
-                    self._finalize_delete_batch(planned, results)
+                    self._finalize_delete_batch(
+                        planned,
+                        results,
+                        preserve_catalog=preserve_catalog,
+                    )
                 except Exception as exc:
                     batch_error = exc
                 if batch_error is not None:
@@ -1065,6 +1081,10 @@ class ImageStorageService:
         if terminal_error is not None:
             raise ImageBatchDeleteError(terminal_error, completed_rels) from terminal_error
         return removed_rels
+
+    def delete_expired_copies(self, rels: list[str]) -> set[str]:
+        """Delete expired local/remote copies while retaining gallery records."""
+        return self.delete_many(rels, preserve_catalog=True)
 
     @staticmethod
     def _compress_png(payload: bytes) -> bytes:

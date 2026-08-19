@@ -10,6 +10,9 @@
           <Button size="sm" variant="outline" :disabled="settingsStore.isLoading || isSaving" @click="reloadSettings">
             {{ settingsStore.isLoading ? '刷新中...' : '刷新' }}
           </Button>
+          <Button size="sm" variant="outline" :disabled="settingsStore.isLoading || isSaving || isCleaningExpiredImages" @click="cleanupExpiredImages">
+            {{ isCleaningExpiredImages ? '清理中...' : '清理过期图片' }}
+          </Button>
           <Button size="sm" variant="primary" :disabled="settingsStore.isLoading || isSaving || !localSettings || hasInvalidNumberSettings" @click="handleSave">
             {{ isSaving ? '保存中...' : '保存设置' }}
           </Button>
@@ -345,11 +348,13 @@ const settingsStore = settingsConfigRuntime.settingsStore
 const localSettings = settingsConfigRuntime.localSettings
 const activeSettingsTab = settingsConfigRuntime.activeSettingsTab
 const isSaving = settingsConfigRuntime.isSaving
+const isCleaningExpiredImages = settingsConfigRuntime.isCleaningExpiredImages
 const settingsLoadError = settingsConfigRuntime.settingsLoadError
 const hasUnsavedSettings = settingsConfigRuntime.hasUnsavedSettings
 const requireSavedSettings = settingsConfigRuntime.requireSavedSettings
 const reloadSettings = settingsConfigRuntime.reloadSettings
 const saveSettings = settingsConfigRuntime.handleSave
+const cleanupExpiredImages = settingsConfigRuntime.cleanupExpiredImages
 const backupRuntime = useSettingsBackupRuntime({
   runtime: pageRuntime,
   requestKey: BACKUPS_REQUEST_KEY,

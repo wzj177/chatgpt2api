@@ -7,9 +7,8 @@ import {
   settingsApi,
   type AccountCleanupRequest,
   type AccountCleanupResult,
-  type RetentionCleanupRequest,
-  type RetentionCleanupResult,
 } from '@/api/settings'
+import { galleryApi } from '@/api/gallery'
 import { useConfirmDialog } from '@/composables/useConfirmDialog'
 import { usePageQuery } from '@/composables/usePageQuery'
 import type { usePageRuntime } from '@/composables/usePageRuntime'
@@ -26,26 +25,6 @@ type SettingsConfigRuntimeOptions = {
   afterSave?: () => void | Promise<void>
 }
 
-function formatBytes(value: unknown): string {
-  const bytes = Number(value || 0)
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  let size = bytes
-  let index = 0
-  while (size >= 1024 && index < units.length - 1) {
-    size /= 1024
-    index += 1
-  }
-  return `${size >= 10 || index === 0 ? size.toFixed(0) : size.toFixed(1)} ${units[index]}`
-}
-
-function cleanupRequest(settings: Settings): RetentionCleanupRequest {
-  return {
-    log_retention_hours: settings.log_retention_hours,
-    image_retention_hours: settings.image_retention_hours,
-  }
-}
-
 function accountCleanupRequest(settings: Settings): AccountCleanupRequest {
   return {
     auto_remove_invalid_accounts: Boolean(settings.auto_remove_invalid_accounts),
@@ -53,25 +32,8 @@ function accountCleanupRequest(settings: Settings): AccountCleanupRequest {
   }
 }
 
-function hasRetentionCleanupTargets(result: RetentionCleanupResult): boolean {
-  return Number(result.total_removed || 0) > 0
-}
-
 function hasAccountCleanupTargets(result: AccountCleanupResult): boolean {
   return Number(result.total_removed || 0) > 0
-}
-
-function retentionCleanupMessage(result: RetentionCleanupResult): string {
-  return [
-    `按当前保留策略检测到 ${result.total_removed} 项可清理数据，预计释放 ${formatBytes(result.total_size_bytes)}。`,
-    `日志：${result.logs.removed || 0} 条，保留 ${result.logs.retention_hours} 小时。`,
-    `图片：${result.images.removed || 0} 个，保留 ${result.images.retention_hours} 小时。`,
-    '是否立即删除这些过期数据？',
-  ].join('\n')
-}
-
-function cleanupDoneMessage(result: RetentionCleanupResult): string {
-  return `清理完成：删除 ${result.total_removed || 0} 项，释放 ${formatBytes(result.total_size_bytes)}`
 }
 
 function accountCleanupMessage(result: AccountCleanupResult): string {
@@ -155,31 +117,28 @@ export function useSettingsConfigRuntime(options: SettingsConfigRuntimeOptions) 
     return result
   }
 
-  async function offerRetentionCleanup() {
-    if (!localSettings.value) return
-    const payload = cleanupRequest(localSettings.value)
-    let preview: RetentionCleanupResult
-    try {
-      preview = await settingsApi.previewRetentionCleanup(payload)
-    } catch (error) {
-      toast.warning(`清理检测失败：${errorMessage(error, '无法检测日志和图片清理项')}`)
+  const isCleaningExpiredImages = ref(false)
+  async function cleanupExpiredImages() {
+    if (hasUnsavedSettings.value) {
+      toast.warning('请先保存设置，再清理过期图片')
       return
     }
-    if (!hasRetentionCleanupTargets(preview)) return
-
     const confirmed = await confirmDialog.ask({
-      title: '检测到可清理数据',
-      message: retentionCleanupMessage(preview),
-      confirmText: '立即清理',
+      title: '清理过期图片',
+      message: '将删除已过期图片的本地和 WebDAV 文件，但保留图库记录并标记为已过期。是否继续？',
+      confirmText: '清理过期图片',
       cancelText: '稍后处理',
     })
     if (!confirmed) return
 
+    isCleaningExpiredImages.value = true
     try {
-      const result = await settingsApi.runRetentionCleanup(payload)
-      toast.success(cleanupDoneMessage(result))
+      const result = await galleryApi.cleanupExpired()
+      toast.success(`已清理 ${result.removed || 0} 张过期图片，图库记录已保留`)
     } catch (error) {
-      toast.error(`清理失败：${errorMessage(error, '无法删除过期日志和图片')}`)
+      toast.error(`清理失败：${errorMessage(error, '无法删除过期图片')}`)
+    } finally {
+      isCleaningExpiredImages.value = false
     }
   }
 
@@ -241,7 +200,6 @@ export function useSettingsConfigRuntime(options: SettingsConfigRuntimeOptions) 
     try {
       await persistSettings(true)
       await offerAccountCleanup()
-      await offerRetentionCleanup()
     } catch (error) {
       if ((error as { status?: number })?.status === 409) {
         let revisionRefreshed = false
@@ -275,12 +233,14 @@ export function useSettingsConfigRuntime(options: SettingsConfigRuntimeOptions) 
     localSettings,
     activeSettingsTab,
     isSaving,
+    isCleaningExpiredImages,
     settingsLoadError,
     hasUnsavedSettings,
     requireSavedSettings,
     persistSettings,
     reloadSettings,
     handleSave,
+    cleanupExpiredImages,
     invalidate,
   }
 }

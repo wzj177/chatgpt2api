@@ -164,7 +164,7 @@ def _retention_cleanup_targets(retention_hours: int) -> list[tuple[str, int]]:
     return [
         (str(item["path"]), int(item["size_bytes"]))
         for item in projection["items"]
-        if item["expired"] and item["local"]
+        if item["expired"] and (item["local"] or item["webdav"])
     ]
 
 
@@ -185,19 +185,16 @@ def cleanup_image_retention(retention_hours: int | None = None) -> dict[str, int
     removed = 0
     removed_size_bytes = 0
     target_sizes = dict(targets)
-    removed_local = image_storage_service.delete_local_copies(list(target_sizes))
-    for rel, remote_remains in removed_local.items():
+    removed_copies = image_storage_service.delete_expired_copies(list(target_sizes))
+    for rel in removed_copies:
         removed += 1
         removed_size_bytes += target_sizes.get(rel, 0)
-        if remote_remains:
-            continue
         for thumbnail in (
             _thumbnail_path(rel),
             config.image_thumbnails_dir / normalize_image_relative_path(rel),
         ):
             if thumbnail.is_file():
                 thumbnail.unlink()
-        remove_tags(rel)
     cleanup_image_thumbnails()
     _cleanup_empty_dirs(config.images_dir)
     _cleanup_empty_dirs(config.image_thumbnails_dir)

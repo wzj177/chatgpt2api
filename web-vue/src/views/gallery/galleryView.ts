@@ -70,6 +70,7 @@ export function formatDimensions(file: GalleryFile): string {
 
 export function storageLabel(file: GalleryFile): string {
   if (!file.storage) return '我的图片'
+  if (file.storage === 'expired') return '已过期'
   if (file.storage === 'both') return '本地+云'
   if (file.storage === 'webdav') return '云端'
   return '本地'
