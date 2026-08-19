@@ -159,7 +159,7 @@ export function buildGalleryMetricItems(
   return [
     { label: '当前视图', value: totalItems, icon: 'lucide:image', iconClass: 'text-cyan-600', iconBgClass: 'bg-transparent' },
     { label: '图库总量', value: storageStats ? storageStats.image_count : counts.all, icon: 'lucide:archive', iconClass: 'text-violet-600', iconBgClass: 'bg-transparent' },
-    { label: '当前占用', value: formatSize(totalSize), icon: 'lucide:database', iconClass: 'text-emerald-600', iconBgClass: 'bg-transparent' },
+    { label: '当前占用', value: formatSize(storageStats ? storageStats.image_size_bytes : totalSize), icon: 'lucide:database', iconClass: 'text-emerald-600', iconBgClass: 'bg-transparent' },
     ...(storageStats ? [{ label: '磁盘剩余', value: formatSize(storageStats.disk_free_mb * 1024 * 1024), icon: 'lucide:hard-drive', iconClass: 'text-amber-600', iconBgClass: 'bg-transparent' }] : []),
   ]
 }

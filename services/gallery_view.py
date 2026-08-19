@@ -206,10 +206,7 @@ def gallery_cleanup_result(result: Mapping[str, object]) -> dict[str, Any]:
         "removed": removed,
         "removed_size_bytes": _non_negative_int(result.get("removed_size_bytes")),
         "retention_hours": max(1, _non_negative_int(result.get("retention_hours"))),
-        "message": (
-            f"已清理 {removed} 个过期本地副本；"
-            "仍有 WebDAV 副本的图库记录已保留。"
-        ),
+        "message": f"已清理 {removed} 张过期图片文件，图库记录已保留。",
     }
 
 
