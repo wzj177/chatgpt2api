@@ -160,6 +160,7 @@ def _retention_cleanup_targets(retention_hours: int) -> list[tuple[str, int]]:
         limit=0,
         offset=0,
         media_type="all",
+        admin=True,
     )
     return [
         (str(item["path"]), int(item["size_bytes"]))
