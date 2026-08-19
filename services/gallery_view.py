@@ -48,12 +48,12 @@ def _unique_texts(values: object) -> list[str]:
 
 
 def _storage(item: Mapping[str, object]) -> tuple[str, bool, bool]:
-    if bool(item.get("expired")):
-        return "expired", False, False
     local = bool(item.get("local", True))
     webdav = bool(item.get("webdav", False))
     explicit = _text(item.get("storage")).lower()
-    if explicit not in {"local", "webdav", "both"}:
+    if not local and not webdav:
+        explicit = "expired"
+    elif explicit not in {"local", "webdav", "both"}:
         explicit = "both" if local and webdav else ("webdav" if webdav else "local")
     return explicit, local, webdav
 
