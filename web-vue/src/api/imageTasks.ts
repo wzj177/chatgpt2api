@@ -63,6 +63,11 @@ export interface CreateEditTaskInput extends CreateGenerationTaskInput {
 export const DEFAULT_IMAGE_MODEL = 'gpt-image-2'
 export const DEFAULT_IMAGE_QUALITY = 'auto'
 export const DEFAULT_IMAGE_SIZE = 'auto'
+export const GROK_IMAGE_MODELS = ['grok-imagine-image-2.0', 'grok-imagine-image'] as const
+
+export function isGrokImageModel(model: string) {
+  return (GROK_IMAGE_MODELS as readonly string[]).includes(model)
+}
 
 export interface ImageSizeOption {
   label: string

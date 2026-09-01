@@ -43,6 +43,28 @@
         </div>
 
         <div class="chat-header-actions">
+          <div class="studio-provider-toggle" role="group" aria-label="生图模型商">
+            <Button
+              size="sm"
+              :variant="isGrokImageMode ? 'outline' : 'primary'"
+              root-class="studio-provider-button"
+              :aria-pressed="!isGrokImageMode"
+              @click="selectImageProvider('gpt')"
+            >
+              GPT
+            </Button>
+            <Button
+              size="sm"
+              :variant="isGrokImageMode ? 'primary' : 'outline'"
+              root-class="studio-provider-button studio-provider-button--grok"
+              :disabled="!canUseGrokImage"
+              :title="canUseGrokImage ? '切换到 Grok 生图' : '当前账号暂无 Grok 生图权限'"
+              :aria-pressed="isGrokImageMode"
+              @click="selectImageProvider('grok')"
+            >
+              Grok
+            </Button>
+          </div>
           <Button size="sm" variant="outline" root-class="chat-header-action-button" @click="createConversation()">
             <Icon icon="lucide:plus" class="h-3.5 w-3.5" />
             <span class="chat-header-action-label hidden sm:inline">新对话</span>
@@ -71,7 +93,7 @@
         </div>
       </div>
       <div class="studio-usage-notice" role="status">
-        每日生图上限 {{ userDailyImageLimit }} 张 · 图片保存 {{ imageRetentionLabel }}
+        {{ selectedImageProviderLabel }} 每日生图上限 {{ selectedDailyImageLimit }} 张 · 图片保存 {{ imageRetentionLabel }}
       </div>
 
       <div ref="studioContentRef" class="studio-content-layout">
@@ -226,6 +248,7 @@ import StudioPromptPicker from '@/components/studio/StudioPromptPicker.vue'
 import StudioSearchSourcesPanel from '@/components/studio/StudioSearchSourcesPanel.vue'
 import { writeClipboardText } from '@/lib/clipboard'
 import { downloadUrlAsFile } from '@/lib/downloads'
+import { isGrokImageModel } from '@/api/imageTasks'
 import {
   buildStudioConversationLookup,
   buildStudioConversationRuntimeIndex,
@@ -280,6 +303,7 @@ const toast = useToast()
 const publicRuntime = usePublicRuntimeConfig()
 void publicRuntime.loadPublicRuntimeConfig()
 const userDailyImageLimit = publicRuntime.userDailyImageLimit
+const grokDailyImageLimit = publicRuntime.grokDailyImageLimit
 const imageRetentionLabel = computed(() => {
   const hours = publicRuntime.imageRetentionHours.value
   if (hours % 24 === 0) return `${hours / 24} 天`
@@ -332,6 +356,18 @@ const chatModel = modelFormRuntime.chatModel
 const chatReasoningEffort = modelFormRuntime.chatReasoningEffort
 const imageForm = modelFormRuntime.imageForm
 const imageHighResolutionEnabled = modelFormRuntime.imageHighResolutionEnabled
+const isGrokImageMode = computed(() => isGrokImageModel(imageForm.model))
+const selectedDailyImageLimit = computed(() => (
+  isGrokImageMode.value ? grokDailyImageLimit.value : userDailyImageLimit.value
+))
+const selectedImageProviderLabel = computed(() => isGrokImageMode.value ? 'Grok' : 'GPT')
+const canUseGrokImage = computed(() => imageModelOptions.value.some(isGrokImageModel))
+
+function selectImageProvider(provider: 'gpt' | 'grok') {
+  composeMode.value = 'image'
+  imageForm.model = provider === 'grok' ? 'grok-imagine-image-2.0' : 'gpt-image-2'
+  if (provider === 'grok') imageForm.n = 1
+}
 
 const conversations = ref<StudioConversation[]>(persistedConversationState.conversations)
 const activeConversationId = ref(persistedConversationState.activeConversationId)
@@ -1132,6 +1168,26 @@ onBeforeUnmount(() => {
   flex: 0 0 auto;
   align-items: center;
   gap: 0.375rem;
+}
+
+.studio-provider-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  padding: 0.125rem;
+  background: hsl(var(--muted) / 0.45);
+}
+
+.studio-provider-button {
+  min-width: 3.25rem;
+  border-radius: 0.625rem;
+  font-weight: 700;
+}
+
+.studio-provider-button--grok {
+  color: hsl(24 85% 42%);
 }
 
 .chat-header-action-button,

@@ -50,6 +50,15 @@
           />
           <div class="log-filter-select">
             <GroupedSelectMenu
+              v-model="filters.provider"
+              :options="providerOptions"
+              placeholder="全部模型商"
+              selected-indicator="none"
+              aria-label="模型商筛选"
+            />
+          </div>
+          <div class="log-filter-select">
+            <GroupedSelectMenu
               :model-value="systemQuickFilterSelection"
               :groups="systemQuickFilterGroups"
               multiple
@@ -253,6 +262,7 @@ const filters = reactive({
   status: '',
   endpoint: '',
   model: '',
+  provider: '',
   account: '',
   conversationId: '',
   search: '',
@@ -361,6 +371,7 @@ const systemLogsQuery = usePagedQuery({
     status: filters.status || undefined,
     endpoint: filters.endpoint || undefined,
     model: filters.model || undefined,
+    provider: filters.provider || undefined,
     account: filters.account || undefined,
     conversation_id: filters.conversationId || undefined,
     search: filters.search || undefined,
@@ -410,6 +421,11 @@ const exportDisabled = logExportRuntime.exportDisabled
 const exportSystemLogs = logExportRuntime.exportSystemLogs
 
 const systemMetricItems = computed(() => buildSystemMetricItems(logMeta))
+const providerOptions = [
+  { label: '全部模型商', value: '' },
+  { label: 'GPT', value: 'gpt' },
+  { label: 'Grok', value: 'grok' },
+]
 
 const activeSystemFilterCount = computed(() => countActiveSystemFilters(filters))
 
@@ -481,6 +497,7 @@ function resetFilters() {
     filters.status = ''
     filters.endpoint = ''
     filters.model = ''
+    filters.provider = ''
     filters.account = ''
     filters.conversationId = ''
     filters.search = ''
@@ -564,6 +581,7 @@ watch(
     filters.status,
     filters.endpoint,
     filters.model,
+    filters.provider,
     filters.account,
     filters.conversationId,
     filters.search,

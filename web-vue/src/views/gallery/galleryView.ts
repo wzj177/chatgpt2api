@@ -69,11 +69,12 @@ export function formatDimensions(file: GalleryFile): string {
 }
 
 export function storageLabel(file: GalleryFile): string {
-  if (!file.storage) return '我的图片'
-  if (file.storage === 'expired') return '已过期'
-  if (file.storage === 'both') return '本地+云'
-  if (file.storage === 'webdav') return '云端'
-  return '本地'
+  const provider = file.provider === 'grok' ? 'Grok' : 'GPT'
+  if (!file.storage) return `${provider} · 我的图片`
+  if (file.storage === 'expired') return `${provider} · 已过期`
+  if (file.storage === 'both') return `${provider} · 本地+云`
+  if (file.storage === 'webdav') return `${provider} · 云端`
+  return `${provider} · 本地`
 }
 
 export function genboxStatusLabel(file: GalleryFile): string {
@@ -130,10 +131,11 @@ export function storageUsageBarWidth(percent: string): string {
 }
 
 export function buildStorageCardItems(stats: ImageStorageStats | null | undefined, totalSize: number): GalleryStorageItem[] {
+  const diskFree = stats?.disk_free_bytes ?? (stats ? stats.disk_free_mb * 1024 * 1024 : 0)
   return [
     { label: '磁盘总量', value: stats ? formatMb(stats.disk_total_mb) : '-' },
     { label: '已用空间', value: stats ? formatMb(stats.disk_used_mb) : '-' },
-    { label: '剩余空间', value: stats ? formatMb(stats.disk_free_mb) : '-' },
+    { label: '剩余空间', value: stats ? formatSize(diskFree) : '-' },
     { label: '图库占用', value: stats ? formatSize(stats.image_size_bytes) : formatSize(totalSize) },
   ]
 }
@@ -156,10 +158,11 @@ export function buildGalleryMetricItems(
   counts: GalleryCounts,
   totalSize: number,
 ): GalleryMetricItem[] {
+  const diskFree = storageStats?.disk_free_bytes ?? (storageStats ? storageStats.disk_free_mb * 1024 * 1024 : 0)
   return [
     { label: '当前视图', value: totalItems, icon: 'lucide:image', iconClass: 'text-cyan-600', iconBgClass: 'bg-transparent' },
     { label: '图库总量', value: storageStats ? storageStats.image_count : counts.all, icon: 'lucide:archive', iconClass: 'text-violet-600', iconBgClass: 'bg-transparent' },
     { label: '当前占用', value: formatSize(storageStats ? storageStats.image_size_bytes : totalSize), icon: 'lucide:database', iconClass: 'text-emerald-600', iconBgClass: 'bg-transparent' },
-    ...(storageStats ? [{ label: '磁盘剩余', value: formatSize(storageStats.disk_free_mb * 1024 * 1024), icon: 'lucide:hard-drive', iconClass: 'text-amber-600', iconBgClass: 'bg-transparent' }] : []),
+    ...(storageStats ? [{ label: '磁盘剩余', value: formatSize(diskFree), icon: 'lucide:hard-drive', iconClass: 'text-amber-600', iconBgClass: 'bg-transparent' }] : []),
   ]
 }

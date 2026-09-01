@@ -12,6 +12,7 @@ from PIL import Image, ImageOps
 from services.config import config
 from services.gallery_view import gallery_page
 from services.image_storage_service import (
+    IMAGE_EXTENSIONS,
     ImageBatchDeleteError,
     image_local_path,
     image_storage_service,
@@ -228,6 +229,7 @@ def list_images(
     media_type: str = "all",
     tag: str = "",
     search: str = "",
+    provider: str = "",
     owner_id: str = "",
     admin: bool = False,
 ) -> dict[str, object]:
@@ -256,6 +258,7 @@ def list_images(
         genbox_push_enabled=bool(genbox_push_settings.get("enabled")),
         tag=tag,
         search=search,
+        provider=provider,
         admin=admin,
     )
 
@@ -335,23 +338,28 @@ def download_images_zip(paths: list[str]) -> io.BytesIO:
 def storage_stats() -> dict:
     import shutil
     usage = shutil.disk_usage(config.images_dir)
-    total_mb = usage.total // (1024 * 1024)
-    used_mb = usage.used // (1024 * 1024)
-    free_mb = usage.free // (1024 * 1024)
+    mebibyte = 1024 * 1024
 
     image_count = 0
     image_size = 0
     for p in config.images_dir.rglob("*"):
-        if p.is_file():
+        if not p.is_file() or p.suffix.lower() not in IMAGE_EXTENSIONS:
+            continue
+        try:
             image_count += 1
             image_size += p.stat().st_size
+        except OSError:
+            continue
 
     return {
-        "disk_total_mb": total_mb,
-        "disk_used_mb": used_mb,
-        "disk_free_mb": free_mb,
+        "disk_total_mb": usage.total // mebibyte,
+        "disk_used_mb": usage.used // mebibyte,
+        "disk_free_mb": usage.free // mebibyte,
+        "disk_total_bytes": usage.total,
+        "disk_used_bytes": usage.used,
+        "disk_free_bytes": usage.free,
         "image_count": image_count,
-        "image_size_mb": image_size // (1024 * 1024),
+        "image_size_mb": image_size // mebibyte,
         "image_size_bytes": image_size,
     }
 

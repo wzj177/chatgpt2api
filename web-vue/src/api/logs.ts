@@ -123,6 +123,7 @@ export type CallSummary = {
   display_status: string
   endpoint: string
   model: string
+  provider: 'gpt' | 'grok'
   started_at: string
   ended_at: string
   duration_ms: number
@@ -174,6 +175,7 @@ export type SystemLogsListParams = {
   status?: string
   endpoint?: string
   model?: string
+  provider?: 'gpt' | 'grok'
   account?: string
   conversation_id?: string
   search?: string
@@ -227,6 +229,7 @@ export type SystemLogRow = {
   outcome: CallOutcome
   endpoint: string
   model: string
+  provider: 'gpt' | 'grok'
   status: string
   keyId: string
   keyName: string
@@ -334,6 +337,7 @@ export function normalizeSystemLogRow(item: CallSummary, index: number, options:
     outcome: item.outcome,
     endpoint: cleanString(item.endpoint),
     model: cleanString(item.model),
+    provider: item.provider === 'grok' ? 'grok' : 'gpt',
     status: cleanString(item.display_status),
     keyId: cleanString(item.key_id),
     keyName: cleanString(item.key_name),
@@ -451,6 +455,7 @@ function normalizeSystemParams(params?: SystemLogsListParams) {
     status: cleanString(params?.status),
     endpoint: cleanString(params?.endpoint),
     model: cleanString(params?.model),
+    provider: params?.provider === 'grok' ? 'grok' : params?.provider === 'gpt' ? 'gpt' : '',
     account: cleanString(params?.account),
     conversation_id: cleanString(params?.conversation_id),
     search: cleanString(params?.search),

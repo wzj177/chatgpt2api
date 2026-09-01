@@ -41,6 +41,7 @@ const lightboxFile = computed<GalleryFile | null>(() => {
     created_at: '',
     date: '',
     media_type: 'image',
+    provider: 'gpt',
     expired: false,
     expires_at: null,
     expires_in_seconds: null,

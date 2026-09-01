@@ -120,6 +120,14 @@ DEFAULT_OAUTH = {
     },
 }
 
+DEFAULT_GROK_IMAGE = {
+    "enabled": True,
+    "base_url": "https://api.x.ai/v1",
+    "api_key": "",
+    "linuxdo_user_limit": 40,
+    "daily_image_limit": 10,
+}
+
 
 def _normalize_bool(value: object, default: bool = False) -> bool:
     if isinstance(value, str):
@@ -390,6 +398,28 @@ def _normalize_oauth_settings(value: object) -> dict[str, object]:
     return normalized
 
 
+def _normalize_grok_image_settings(value: object) -> dict[str, object]:
+    source = value if isinstance(value, dict) else {}
+    normalized = copy.deepcopy(source)
+    try:
+        user_limit = max(0, min(10000, int(source.get("linuxdo_user_limit") or 40)))
+    except (TypeError, ValueError):
+        user_limit = 40
+    try:
+        daily_limit = max(2, min(10, int(source.get("daily_image_limit") or 10)))
+    except (TypeError, ValueError):
+        daily_limit = 10
+    normalized.update({
+        "enabled": _normalize_bool(source.get("enabled"), True),
+        "base_url": str(source.get("base_url") or DEFAULT_GROK_IMAGE["base_url"]).strip().rstrip("/"),
+        "api_key": str(source.get("api_key") or "").strip(),
+        "linuxdo_user_limit": user_limit,
+        "daily_image_limit": daily_limit,
+    })
+    normalized.pop("has_api_key", None)
+    return normalized
+
+
 def _legacy_basic_from_settings(value: object, settings: dict[str, object]) -> dict[str, object]:
     source = dict(value) if isinstance(value, dict) else {}
     source["proxy"] = str(settings.get("proxy") or "").strip()
@@ -527,6 +557,11 @@ class ConfigStore:
     def service_button_enabled(self) -> bool:
         self.reload_if_changed()
         return _normalize_bool(self.data.get("service_button_enabled"), False)
+
+    @property
+    def grok_image(self) -> dict[str, object]:
+        self.reload_if_changed()
+        return _normalize_grok_image_settings(self.data.get("grok_image"))
 
     @property
     def user_daily_image_limit(self) -> int:
@@ -798,6 +833,7 @@ class ConfigStore:
             data["fallback_proxy"] = self.get_proxy_fallback_settings()
             data["third_party_apps"] = self.get_third_party_apps_settings()
             data["oauth"] = self.get_oauth_settings()
+            data["grok_image"] = self.grok_image
             data.pop("basic", None)
             return data
 
@@ -893,6 +929,8 @@ class ConfigStore:
                 updates["third_party_apps"] = _normalize_third_party_apps_settings(updates.get("third_party_apps"))
             if "oauth" in updates:
                 updates["oauth"] = _normalize_oauth_settings(updates.get("oauth"))
+            if "grok_image" in updates:
+                updates["grok_image"] = _normalize_grok_image_settings(updates.get("grok_image"))
             if "proxy_runtime" in updates:
                 incoming_runtime = updates.get("proxy_runtime")
                 if isinstance(incoming_runtime, dict):

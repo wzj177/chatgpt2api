@@ -28,6 +28,7 @@ export interface GalleryRow {
   created_at: string
   date: string
   media_type: GalleryFileMediaType
+  provider: 'gpt' | 'grok'
   expired: boolean
   expires_at: string | null
   expires_in_seconds: number | null
@@ -74,6 +75,9 @@ export interface GalleryResponse {
 }
 
 export interface ImageStorageStats {
+  disk_total_bytes?: number
+  disk_used_bytes?: number
+  disk_free_bytes?: number
   disk_total_mb: number
   disk_used_mb: number
   disk_free_mb: number
@@ -112,6 +116,7 @@ export type GalleryParams = {
   media_type?: GalleryMediaType
   tag?: string
   search?: string
+  provider?: 'gpt' | 'grok'
   start_date?: string
   end_date?: string
 }

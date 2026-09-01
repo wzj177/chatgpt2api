@@ -64,6 +64,7 @@
         <Input v-model.trim="settings.oauth.linuxdo.oidc_discovery" block :disabled="fieldReadOnly('oauth.linuxdo.oidc_discovery')" />
       </FormField>
     </FormSection>
+
   </div>
 </template>
 

@@ -22,6 +22,7 @@ from services.protocol import (
     openai_v1_chat_complete,
     openai_v1_image_edit,
     openai_v1_image_generations,
+    grok_image_generations,
     openai_v1_models,
     openai_v1_response,
     openai_search,
@@ -147,12 +148,15 @@ def create_router() -> APIRouter:
         payload = body.model_dump(mode="python")
         payload["base_url"] = resolve_image_base_url(request)
         payload["_owner_id"] = str(identity.get("id") or "")
+        if grok_image_generations.is_grok_image_model(body.model) and body.n != 1:
+            raise HTTPException(status_code=400, detail={"error": "Grok 图片目前只支持生成 1 张"})
         call = LoggedCall(identity, "/v1/images/generations", body.model, "文生图", request_text=body.prompt)
         attach_trace_headers(call, request)
         call.attach_trace_metadata(payload)
         await filter_or_log(call, body.prompt)
         reserve_image_quota(call, body.n)
-        return await call.run(openai_v1_image_generations.handle, payload)
+        handler = grok_image_generations.handle if grok_image_generations.is_grok_image_model(body.model) else openai_v1_image_generations.handle
+        return await call.run(handler, payload)
 
     @router.post("/v1/images/edits")
     async def edit_images(

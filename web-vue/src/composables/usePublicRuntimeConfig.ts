@@ -36,6 +36,7 @@ export function usePublicRuntimeConfig() {
   ))
   const thirdPartyApps = computed(() => sharedView.value?.third_party_apps || null)
   const userDailyImageLimit = computed(() => sharedView.value?.user_daily_image_limit ?? 20)
+  const grokDailyImageLimit = computed(() => sharedView.value?.grok_daily_image_limit ?? 0)
   const imageRetentionHours = computed(() => sharedView.value?.image_retention_hours ?? 24)
 
   async function loadPublicRuntimeConfig(force = false) {
@@ -79,6 +80,7 @@ export function usePublicRuntimeConfig() {
     apiBaseUrl,
     thirdPartyApps,
     userDailyImageLimit,
+    grokDailyImageLimit,
     imageRetentionHours,
     isLoading,
     loadError,

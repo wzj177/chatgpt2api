@@ -467,12 +467,17 @@ class LoggedCall:
     def reserve_image_quota(self, requested: int) -> None:
         if str(self.identity.get("role") or "") != "user" or not self._is_image_request():
             return
-        from services.image_quota_service import reserve_user_image_quota
-
-        self.image_quota_reservation_id = reserve_user_image_quota(
-            str(self.identity.get("id") or ""),
-            requested,
-        )
+        from services.protocol.grok_image_generations import is_grok_image_model
+        from services.auth_service import auth_service
+        user_id = str(self.identity.get("id") or "")
+        if is_grok_image_model(self.model):
+            from services.config import config
+            self.image_quota_reservation_id = auth_service.reserve_grok_images(
+                user_id, 1, int(config.grok_image.get("daily_image_limit") or 10)
+            )
+        else:
+            from services.image_quota_service import reserve_user_image_quota
+            self.image_quota_reservation_id = reserve_user_image_quota(user_id, requested)
 
     def _finish_image_quota(self, status: str, urls: list[str]) -> None:
         reservation_id = self.image_quota_reservation_id
@@ -480,19 +485,29 @@ class LoggedCall:
             return
         self.image_quota_reservation_id = ""
         from services.auth_service import auth_service
+        from services.protocol.grok_image_generations import is_grok_image_model
 
         if status == "success" and urls:
             try:
-                auth_service.complete_successful_images(reservation_id, len(set(urls)))
+                if is_grok_image_model(self.model):
+                    auth_service.complete_grok_images(reservation_id, len(set(urls)))
+                else:
+                    auth_service.complete_successful_images(reservation_id, len(set(urls)))
             except Exception as exc:
-                auth_service.release_successful_images(reservation_id)
+                if is_grok_image_model(self.model):
+                    auth_service.release_grok_images(reservation_id)
+                else:
+                    auth_service.release_successful_images(reservation_id)
                 logger.error({
                     "event": "image_usage_persist_failed",
                     "call_id": self.call_id,
                     "error": str(exc),
                 })
             return
-        auth_service.release_successful_images(reservation_id)
+        if is_grok_image_model(self.model):
+            auth_service.release_grok_images(reservation_id)
+        else:
+            auth_service.release_successful_images(reservation_id)
 
     async def run(self, handler, *args, sse: str = "openai"):
         if args and isinstance(args[0], dict):

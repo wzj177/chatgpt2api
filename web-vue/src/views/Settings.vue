@@ -144,6 +144,12 @@
         :fields="settingsFields"
       />
 
+      <SettingsGrokPanel
+        v-else-if="activeSettingsTab === 'grok'"
+        :settings="localSettings"
+        :fields="settingsFields"
+      />
+
       <SettingsExternalSourcesPanel
         v-else-if="activeSettingsTab === 'cpa' || activeSettingsTab === 'sub2api'"
         :active-tab="activeSettingsTab"
@@ -317,6 +323,7 @@ import SettingsExternalSourceModals from '@/views/settings/SettingsExternalSourc
 import SettingsExternalSourcesPanel from '@/views/settings/SettingsExternalSourcesPanel.vue'
 import SettingsIntegrationsPanel from '@/views/settings/SettingsIntegrationsPanel.vue'
 import SettingsAuthorizationPanel from '@/views/settings/SettingsAuthorizationPanel.vue'
+import SettingsGrokPanel from '@/views/settings/SettingsGrokPanel.vue'
 import SettingsPromptSourcesPanel from '@/views/settings/SettingsPromptSourcesPanel.vue'
 import SettingsStorageReviewPanel from '@/views/settings/SettingsStorageReviewPanel.vue'
 import StudioMarkdownContent from '@/components/studio/StudioMarkdownContent.vue'

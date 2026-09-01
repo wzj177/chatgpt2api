@@ -82,6 +82,8 @@ def gallery_row(
     path = _text(item.get("path") or item.get("rel") or item.get("name"))
     filename = _text(item.get("name") or item.get("filename")) or Path(path).name
     storage, local, webdav = _storage(item)
+    model = _text(item.get("model")) or "gpt-image-2"
+    provider = "grok" if model.startswith("grok-") else "gpt"
     expired, expires_at, expires_in_seconds = _expiry(item, retention_hours)
     owner_id = _text(item.get("owner_id")) or "anonymous"
     query = signed_image_query(path, owner_id)
@@ -95,6 +97,7 @@ def gallery_row(
         "created_at": _text(item.get("created_at")),
         "date": _text(item.get("date")),
         "media_type": "image",
+        "provider": provider,
         "expired": expired,
         "expires_at": expires_at,
         "expires_in_seconds": expires_in_seconds,
@@ -146,6 +149,7 @@ def gallery_page(
     genbox_push_enabled: bool = False,
     tag: str = "",
     search: str = "",
+    provider: str = "",
     admin: bool = False,
 ) -> dict[str, Any]:
     rows = [
@@ -164,6 +168,7 @@ def gallery_page(
         for item in rows
         if (not selected_tag or selected_tag == "all" or selected_tag in item["tags"])
         and _matches_search(item, search)
+        and (not provider or item["provider"] == provider)
     ]
     media_facets = {
         "all": len(filtered),

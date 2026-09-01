@@ -32,6 +32,7 @@ from services.image_task_view import image_task_page, image_task_row
 from services.json_file import read_json_file, write_json_file
 from services.log_service import LOG_TYPE_CALL, collect_image_attempts, log_service
 from services.protocol import openai_v1_image_edit, openai_v1_image_generations
+from services.protocol.grok_image_generations import handle as grok_image_generation, is_grok_image_model
 from services.realtime_monitor_service import realtime_monitor_service
 from services.storage.file_lock import interprocess_lock
 from utils.diagnostics import exception_diagnostic_fields
@@ -266,6 +267,7 @@ class ImageTaskService:
         self._tasks: dict[str, dict[str, Any]] = {}
         self._pending_submissions: dict[str, threading.Event] = {}
         self._quota_reservations: dict[str, str] = {}
+        self._grok_quota_reservations: dict[str, str] = {}
         self._executing_task_keys: set[str] = set()
         self._shutdown_lock = threading.Lock()
         self._batching_task_cancellations = threading.Event()
@@ -383,6 +385,8 @@ class ImageTaskService:
         quality: str = "auto",
         base_url: str = "",
     ) -> dict[str, Any]:
+        if is_grok_image_model(model) and int(n or 1) != 1:
+            raise ValueError("Grok 每次只能生成 1 张图片")
         payload = {
             "prompt": prompt,
             "model": model,
@@ -497,12 +501,18 @@ class ImageTaskService:
         try:
             if str(identity.get("role") or "") == "user":
                 requested = _image_count(payload.get("n"))
-                quota_reservation_id = reserve_user_image_quota(
-                    owner,
-                    requested,
-                )
-                with self._lock:
-                    self._quota_reservations[key] = quota_reservation_id
+                if is_grok_image_model(payload.get("model")):
+                    quota_reservation_id = auth_service.reserve_grok_images(
+                        owner,
+                        requested,
+                        int(config.grok_image.get("daily_image_limit") or 10),
+                    )
+                    with self._lock:
+                        self._grok_quota_reservations[key] = quota_reservation_id
+                else:
+                    quota_reservation_id = reserve_user_image_quota(owner, requested)
+                    with self._lock:
+                        self._quota_reservations[key] = quota_reservation_id
             reservation = reservation or self.reserve_submission()
             queued_payload = self._prepare_queued_payload(mode, payload)
             task = {
@@ -549,7 +559,12 @@ class ImageTaskService:
                 if completed is not None:
                     completed.set()
             if not task_committed:
-                self._release_quota_reservation(key)
+                if is_grok_image_model(payload.get("model")):
+                    with self._lock:
+                        reservation_id = self._grok_quota_reservations.pop(key, "")
+                    auth_service.release_grok_images(reservation_id)
+                else:
+                    self._release_quota_reservation(key)
 
     def _prepare_queued_payload(self, mode: str, payload: dict[str, Any]) -> dict[str, Any]:
         queued = dict(payload)
@@ -594,6 +609,15 @@ class ImageTaskService:
         spool_dir = _clean(payload.get("_spool_dir"))
         if spool_dir:
             shutil.rmtree(spool_dir, ignore_errors=True)
+
+    def _release_image_quota_reservation(self, key: str, model: object = "") -> None:
+        if is_grok_image_model(model):
+            with self._lock:
+                reservation_id = self._grok_quota_reservations.pop(key, "")
+            if reservation_id:
+                auth_service.release_grok_images(reservation_id)
+            return
+        self._release_quota_reservation(key)
 
     def _release_quota_reservation(self, key: str) -> None:
         with self._lock:
@@ -676,7 +700,7 @@ class ImageTaskService:
             )
             callback(*next_args)
         except Exception as exc:
-            self._release_quota_reservation(key)
+            self._release_image_quota_reservation(key, queued_payload.get("model"))
             public_error, _, error_details = _normalize_task_failure(exc, "image task failed")
             try:
                 self._update_task(
@@ -746,7 +770,9 @@ class ImageTaskService:
             })
         finally:
             if interrupted:
-                self._release_quota_reservation(key)
+                with self._lock:
+                    task_model = self._tasks.get(key, {}).get("model", "")
+                self._release_image_quota_reservation(key, task_model)
 
     def _run_task(
         self,
@@ -802,7 +828,9 @@ class ImageTaskService:
             model=model,
         )
         try:
-            handler = self.edit_handler if mode == "edit" else self.generation_handler
+            handler = self.edit_handler if mode == "edit" else (
+                grok_image_generation if is_grok_image_model(model) else self.generation_handler
+            )
             result = handler(payload_with_progress)
             perf_timings["handler_exec_ms"] = int((time.perf_counter() - handler_started) * 1000)
             if not isinstance(result, dict):
@@ -824,7 +852,12 @@ class ImageTaskService:
                 raise error
             usage = result.get("usage")
             duration_ms = int((time.time() - started) * 1000)
-            self._complete_quota_reservation(key, len(data))
+            if is_grok_image_model(model):
+                with self._lock:
+                    reservation_id = self._grok_quota_reservations.pop(key, "")
+                auth_service.complete_grok_images(reservation_id, len(data))
+            else:
+                self._complete_quota_reservation(key, len(data))
             self._update_task(
                 key,
                 status=TASK_STATUS_SUCCESS,
@@ -856,7 +889,12 @@ class ImageTaskService:
                 extra={"image_attempts": image_attempts} if image_attempts else None,
             )
         except Exception as exc:
-            self._release_quota_reservation(key)
+            if is_grok_image_model(model):
+                with self._lock:
+                    reservation_id = self._grok_quota_reservations.pop(key, "")
+                auth_service.release_grok_images(reservation_id)
+            else:
+                self._release_quota_reservation(key)
             perf_timings["handler_exec_ms"] = int((time.perf_counter() - handler_started) * 1000)
             public_error, raw_error, error_details = _normalize_task_failure(exc, "image task failed")
             account_email = _clean(getattr(exc, "account_email", ""))
@@ -1179,6 +1217,7 @@ class ImageTaskService:
                 int(time.time()),
                 requested_size=size,
                 owner_id=_owner_id(identity),
+                model=model,
             )
             data = formatted["data"]
             self._complete_quota_reservation(key, len(data))

@@ -152,7 +152,7 @@
                     <div class="studio-size-label">质量</div>
                     <div class="studio-choice-grid is-quality">
                       <Button
-                        v-for="option in IMAGE_QUALITY_OPTIONS"
+                        v-for="option in imageQualityOptions"
                         :key="option.value"
                         size="sm"
                         :variant="imageForm.quality === option.value ? 'primary' : 'outline'"
@@ -168,7 +168,7 @@
                     <div class="studio-size-label">数量</div>
                     <div class="studio-choice-grid is-count">
                       <Button
-                        v-for="option in IMAGE_COUNT_OPTIONS"
+                        v-for="option in imageCountOptions"
                         :key="option.value"
                         size="sm"
                         :variant="imageForm.n === option.value ? 'primary' : 'outline'"
@@ -287,6 +287,7 @@ import {
   IMAGE_COUNT_OPTIONS,
   IMAGE_QUALITY_OPTIONS,
   formatImageSizeLabel,
+  isGrokImageModel,
   resolveImageSizePresets,
   type ImageSizeResolution,
 } from '@/api/imageTasks'
@@ -415,6 +416,12 @@ const imageModelSelectOptions = computed(() => props.imageModelOptions.map((mode
   label: model,
   value: model,
 })))
+const imageQualityOptions = computed(() => isGrokImageModel(props.imageForm.model)
+  ? IMAGE_QUALITY_OPTIONS.filter((option) => option.value === 'low' || option.value === 'medium')
+  : IMAGE_QUALITY_OPTIONS)
+const imageCountOptions = computed(() => isGrokImageModel(props.imageForm.model)
+  ? IMAGE_COUNT_OPTIONS.filter((option) => option.value === 1)
+  : IMAGE_COUNT_OPTIONS)
 
 const sizePresets = computed(() => resolveImageSizePresets(props.imageHighResolutionEnabled))
 const selectedPreset = computed(() => sizePresets.value.find((preset) => preset.value === props.imageForm.size))

@@ -12,6 +12,7 @@ from contracts.models import (
     ModelCatalogView,
 )
 from services.account_service import account_service
+from services.auth_service import auth_service
 from services.config import config
 from utils.helper import CODEX_IMAGE_MODEL
 
@@ -181,5 +182,13 @@ class ModelCatalogService:
 model_catalog_service = ModelCatalogService()
 
 
-def get_model_catalog() -> ModelCatalogView:
-    return model_catalog_service.view()
+def get_model_catalog(identity: dict[str, object] | None = None) -> ModelCatalogView:
+    view = model_catalog_service.view()
+    if not identity:
+        return view
+    if str(identity.get("role") or "") != "admin" and not auth_service.is_grok_eligible(str(identity.get("id") or "")):
+        return view
+    return view.model_copy(update={
+        "image_models": tuple(dict.fromkeys((*view.image_models, "grok-imagine-image-2.0", "grok-imagine-image"))),
+        "all_models": tuple(dict.fromkeys((*view.all_models, "grok-imagine-image-2.0", "grok-imagine-image"))),
+    })

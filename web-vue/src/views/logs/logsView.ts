@@ -19,6 +19,7 @@ export type SystemLogFilters = {
   status: string
   endpoint: string
   model: string
+  provider: string
   account: string
   conversationId: string
   type: string
@@ -271,6 +272,7 @@ export function buildLogPreviewGalleryFile(image: LogPreviewImage | null | undef
     created_at: '',
     date: '',
     media_type: 'image',
+    provider: 'gpt',
     expired: false,
     expires_at: null,
     expires_in_seconds: null,
@@ -306,6 +308,7 @@ export function activeSystemFilterCount(filters: SystemLogFilters): number {
     filters.status,
     filters.endpoint,
     filters.model,
+    filters.provider,
     filters.account,
     filters.conversationId,
     filters.type !== 'call' ? filters.type || 'all' : '',

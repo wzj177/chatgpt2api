@@ -32,6 +32,7 @@ export function useGalleryQueryRuntime(options: GalleryQueryRuntimeOptions) {
   const galleryLoadError = ref('')
   const tagFilter = ref('all')
   const searchQuery = ref('')
+  const providerFilter = ref<'gpt' | 'grok' | ''>('')
   const startDate = ref('')
   const endDate = ref('')
   const pageSize = ref(getNumberPreference(preferenceKeys.galleryPageSize, 24, { allowed: galleryPageSizeOptions }))
@@ -57,6 +58,7 @@ export function useGalleryQueryRuntime(options: GalleryQueryRuntimeOptions) {
       media_type: 'all',
       tag: tagFilter.value,
       search: searchQuery.value,
+      provider: providerFilter.value || undefined,
       start_date: startDate.value,
       end_date: endDate.value,
     }),
@@ -120,7 +122,7 @@ export function useGalleryQueryRuntime(options: GalleryQueryRuntimeOptions) {
     searchDebounce.clear()
   }
 
-  watch([tagFilter, startDate, endDate, pageSize], () => {
+  watch([tagFilter, providerFilter, startDate, endDate, pageSize], () => {
     if (!options.runtime.isActive.value) return
     resetAndLoad()
   })
@@ -145,6 +147,7 @@ export function useGalleryQueryRuntime(options: GalleryQueryRuntimeOptions) {
     galleryLoadError,
     tagFilter,
     searchQuery,
+    providerFilter,
     startDate,
     endDate,
     pageSize,

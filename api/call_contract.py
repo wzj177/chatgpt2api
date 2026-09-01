@@ -135,6 +135,7 @@ class CallSummary(BaseModel):
     display_status: str
     endpoint: str
     model: str
+    provider: str = "gpt"
     started_at: str
     ended_at: str
     duration_ms: int = Field(ge=0)

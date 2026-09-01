@@ -55,6 +55,20 @@
       />
     </section>
 
+    <section
+      aria-label="图片生成概览"
+      class="grid grid-cols-2 gap-3"
+    >
+      <StatCard
+        v-for="stat in imageProviderStats"
+        :key="stat.label"
+        :label="stat.label"
+        :value="stat.value"
+        :icon="stat.icon"
+        :icon-tone="stat.iconTone"
+      />
+    </section>
+
     <section>
       <PagePanel class="!rounded-xl">
         <PanelHeader title="运行环境" align="start" />
@@ -300,6 +314,32 @@ const callStats = computed(() => {
       value: formatPercent(switching?.recovery_rate),
       icon: 'lucide:shield-check',
       iconTone: 'success' as const,
+    },
+  ]
+})
+
+const imageProviderStats = computed(() => {
+  const modelSuccess = dashboardRanges.value?.['24h']?.trend.model_success_requests || {}
+  const totalFor = (provider: 'gpt' | 'grok') => Object.entries(modelSuccess)
+    .filter(([model]) => {
+      const normalized = model.toLowerCase()
+      return provider === 'grok'
+        ? normalized.startsWith('grok-')
+        : normalized.includes('image') && !normalized.startsWith('grok-')
+    })
+    .reduce((total, [, values]) => total + values.reduce((sum, value) => sum + Number(value || 0), 0), 0)
+  return [
+    {
+      label: 'GPT 生图成功（24h）',
+      value: formatCount(totalFor('gpt')),
+      icon: 'lucide:image',
+      iconTone: 'info' as const,
+    },
+    {
+      label: 'Grok 生图成功（24h）',
+      value: formatCount(totalFor('grok')),
+      icon: 'lucide:sparkles',
+      iconTone: 'warning' as const,
     },
   ]
 })

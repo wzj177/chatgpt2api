@@ -140,6 +140,14 @@ export interface Settings {
       oidc_discovery: string
     }
   }
+  grok_image: {
+    enabled: boolean
+    base_url: string
+    api_key: string
+    has_api_key: boolean
+    linuxdo_user_limit: number
+    daily_image_limit: number
+  }
   third_party_apps: {
     infinite_canvas: {
       enabled: boolean

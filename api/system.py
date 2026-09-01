@@ -363,8 +363,8 @@ def create_router(app_version: str) -> APIRouter:
 
     @router.get("/api/third-party-apps", response_model=PublicThirdPartyAppsView)
     async def get_third_party_apps(authorization: str | None = Header(default=None)):
-        require_identity(authorization)
-        return await run_in_threadpool(settings_management_service.public_third_party_apps_view)
+        identity = require_identity(authorization)
+        return await run_in_threadpool(settings_management_service.public_third_party_apps_view, identity)
 
     @router.patch("/api/settings", response_model=SettingsMutationResult)
     async def save_settings(body: SettingsPatch, authorization: str | None = Header(default=None)):
@@ -402,8 +402,8 @@ def create_router(app_version: str) -> APIRouter:
 
     @router.get("/api/model-catalog", response_model=ModelCatalogView)
     async def model_catalog(authorization: str | None = Header(default=None)):
-        require_identity(authorization)
-        return await run_in_threadpool(get_model_catalog)
+        identity = require_identity(authorization)
+        return await run_in_threadpool(get_model_catalog, identity)
 
     @router.get("/api/images", response_model=GalleryPage)
     async def get_images(
@@ -415,6 +415,7 @@ def create_router(app_version: str) -> APIRouter:
         media_type: GalleryMediaFilter = Query(default="all"),
         tag: str = Query(default=""),
         search: str = Query(default=""),
+        provider: str = Query(default=""),
         authorization: str | None = Header(default=None),
     ):
         identity = require_identity(authorization)
@@ -428,6 +429,7 @@ def create_router(app_version: str) -> APIRouter:
             media_type=media_type,
             tag=tag.strip(),
             search=search.strip(),
+            provider=provider.strip().lower() if provider.strip().lower() in {"gpt", "grok"} else "",
             owner_id="" if identity.get("role") == "admin" else str(identity.get("id") or ""),
             admin=identity.get("role") == "admin",
         )
@@ -517,6 +519,7 @@ def create_router(app_version: str) -> APIRouter:
         status: CallLogStatus = "",
         endpoint: str = "",
         model: str = "",
+        provider: str = "",
         account: str = "",
         conversation_id: str = "",
         search: str = "",
@@ -533,6 +536,7 @@ def create_router(app_version: str) -> APIRouter:
             status=status.strip(),
             endpoint=endpoint.strip(),
             model=model.strip(),
+            provider=provider.strip(),
             account=account.strip(),
             conversation_id=conversation_id.strip(),
             search=search.strip(),

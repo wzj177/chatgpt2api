@@ -14,6 +14,7 @@ from contracts.settings import (
     BackupIncludeSettings,
     BackupSettings,
     GenBoxPushSettings,
+    GrokImageSettings,
     ImageStorageSettings,
     InfiniteCanvasSettings,
     LinuxDoOAuthSettings,
@@ -38,6 +39,7 @@ from contracts.settings_specification import (
 from services.config import (
     DEFAULT_BACKUP_INCLUDE,
     DEFAULT_GENBOX_PUSH,
+    DEFAULT_GROK_IMAGE,
     DEFAULT_IMAGE_STORAGE,
     DEFAULT_OAUTH,
     DEFAULT_PROXY_RUNTIME,
@@ -79,6 +81,7 @@ _MANAGED_TOP_LEVEL_FIELDS = (
     "genbox_push",
     "backup",
     "oauth",
+    "grok_image",
     "third_party_apps",
     "user_daily_image_limit",
     "user_daily_image_limit_auto",
@@ -95,6 +98,7 @@ _SENSITIVE_PATHS = (
     ("proxy_runtime", "clearance", "cf_cookies"),
     ("proxy_runtime", "clearance", "cf_clearance"),
     ("oauth", "linuxdo", "client_secret"),
+    ("grok_image", "api_key"),
 )
 
 
@@ -312,6 +316,11 @@ _FIELD_SPECS: dict[str, dict[str, Any]] = {
     "third_party_apps.infinite_canvas.url": _field_metadata("https://canvas.best"),
     "oauth.linuxdo.enabled": _field_metadata(False),
     "oauth.registration_enabled": _field_metadata(True),
+    "grok_image.enabled": _field_metadata(True),
+    "grok_image.base_url": _field_metadata(DEFAULT_GROK_IMAGE["base_url"]),
+    "grok_image.api_key": _field_metadata("", sensitive=True),
+    "grok_image.linuxdo_user_limit": _field_metadata(40, min=0, max=10000, unit="users"),
+    "grok_image.daily_image_limit": _field_metadata(10, min=2, max=10, unit="images"),
     "oauth.linuxdo.client_id": _field_metadata(""),
     "oauth.linuxdo.client_secret": _field_metadata("", sensitive=True),
     "oauth.linuxdo.authorization_endpoint": _field_metadata(DEFAULT_OAUTH["linuxdo"]["authorization_endpoint"]),
@@ -333,14 +342,24 @@ class SettingsManagementService:
             effective, stored = self._snapshots()
             return self._build_view(effective, stored)
 
-    def public_third_party_apps_view(self) -> PublicThirdPartyAppsView:
+    def public_third_party_apps_view(self, identity: Mapping[str, object] | None = None) -> PublicThirdPartyAppsView:
         with self._mutation_lock, self._config_lock():
             effective, stored = self._snapshots()
             settings = self._project_settings(effective, stored)
             canvas = settings.third_party_apps.infinite_canvas
+            configured_grok_limit = int(config.grok_image.get("daily_image_limit") or 10)
+            identity_role = str((identity or {}).get("role") or "")
             return PublicThirdPartyAppsView(
                 api_base_url=settings.base_url,
                 user_daily_image_limit=config.user_daily_image_limit,
+                grok_daily_image_limit=(
+                    max(2, min(10, configured_grok_limit))
+                    if identity_role == "admin"
+                    else auth_service.grok_daily_image_limit(
+                        str((identity or {}).get("id") or ""),
+                        configured_grok_limit,
+                    )
+                ),
                 image_retention_hours=settings.image_retention_hours,
                 console_request_timeout_secs=settings.console_request_timeout_secs,
                 third_party_apps=PublicThirdPartyAppsSettings(
@@ -477,6 +496,8 @@ class SettingsManagementService:
         stored_oauth = _dict(stored.get("oauth"))
         linuxdo_oauth = _dict(oauth.get("linuxdo"))
         stored_linuxdo_oauth = _dict(stored_oauth.get("linuxdo"))
+        grok_image = _dict(effective.get("grok_image"))
+        stored_grok_image = _dict(stored.get("grok_image"))
         third_party_apps = _dict(effective.get("third_party_apps"))
         infinite_canvas = _dict(third_party_apps.get("infinite_canvas"))
 
@@ -664,6 +685,14 @@ class SettingsManagementService:
                         str(DEFAULT_OAUTH["linuxdo"]["oidc_discovery"]),
                     ) or str(DEFAULT_OAUTH["linuxdo"]["oidc_discovery"]),
                 ),
+            ),
+            grok_image=GrokImageSettings(
+                enabled=_bool(grok_image.get("enabled"), True),
+                base_url=_url(grok_image.get("base_url"), str(DEFAULT_GROK_IMAGE["base_url"])) or str(DEFAULT_GROK_IMAGE["base_url"]),
+                api_key="",
+                has_api_key=bool(_text(stored_grok_image.get("api_key"))),
+                linuxdo_user_limit=max(0, min(10000, int(grok_image.get("linuxdo_user_limit") or 40))),
+                daily_image_limit=max(2, min(10, int(grok_image.get("daily_image_limit") or 10))),
             ),
             third_party_apps=ThirdPartyAppsSettings(
                 infinite_canvas=InfiniteCanvasSettings(

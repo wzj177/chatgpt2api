@@ -185,6 +185,22 @@ class OAuthPatch(_StrictModel):
     linuxdo: LinuxDoOAuthPatch = Field(default_factory=LinuxDoOAuthPatch)
 
 
+class _GrokImageFields(_StrictModel):
+    enabled: bool = True
+    base_url: str = "https://api.x.ai/v1"
+    api_key: str = ""
+    linuxdo_user_limit: int = Field(default=40, ge=0, le=10000)
+    daily_image_limit: int = Field(default=10, ge=2, le=10)
+
+
+class GrokImageSettings(_GrokImageFields):
+    has_api_key: bool = False
+
+
+class GrokImagePatch(_GrokImageFields):
+    pass
+
+
 class PublicInfiniteCanvasSettings(_StrictModel):
     enabled: bool = False
     url: str = "https://canvas.best"
@@ -199,6 +215,7 @@ class PublicThirdPartyAppsView(_StrictModel):
     console_request_timeout_secs: int = _numeric_field("console_request_timeout_secs")
     third_party_apps: PublicThirdPartyAppsSettings = Field(default_factory=PublicThirdPartyAppsSettings)
     user_daily_image_limit: int = Field(default=20, ge=0)
+    grok_daily_image_limit: int = Field(default=0, ge=0, le=10)
     image_retention_hours: int = Field(default=24, ge=1)
 
 
@@ -239,6 +256,7 @@ class _SettingsEditableFields(_StrictModel):
     genbox_push: GenBoxPushPatch = Field(default_factory=GenBoxPushPatch)
     backup: BackupPatch = Field(default_factory=BackupPatch)
     oauth: OAuthPatch = Field(default_factory=OAuthPatch)
+    grok_image: GrokImagePatch = Field(default_factory=GrokImagePatch)
     third_party_apps: ThirdPartyAppsSettings = Field(default_factory=ThirdPartyAppsSettings)
     user_daily_image_limit: int = Field(default=20, ge=0, le=10000)
     user_daily_image_limit_auto: bool = True
@@ -258,6 +276,7 @@ class SettingsValues(_SettingsEditableFields):
     genbox_push: GenBoxPushSettings = Field(default_factory=GenBoxPushSettings)
     backup: BackupSettings = Field(default_factory=BackupSettings)
     oauth: OAuthSettings = Field(default_factory=OAuthSettings)
+    grok_image: GrokImageSettings = Field(default_factory=GrokImageSettings)
 
 
 class SettingsPatch(_SettingsEditableFields):

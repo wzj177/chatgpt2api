@@ -4,6 +4,7 @@ import {
   DEFAULT_IMAGE_QUALITY,
   DEFAULT_IMAGE_SIZE,
   isImageSizeSupportedByModel,
+  isGrokImageModel,
 } from '@/api/imageTasks'
 import { useModelCatalog } from '@/composables/useModelCatalog'
 import {
@@ -54,6 +55,10 @@ export function useStudioModelFormRuntime() {
   }, { immediate: true })
   watch([() => imageForm.model, imageHighResolutionEnabled], ([, highResolutionEnabled]) => {
     if (!isImageSizeSupportedByModel(imageForm.size, highResolutionEnabled)) imageForm.size = DEFAULT_IMAGE_SIZE
+    if (isGrokImageModel(imageForm.model)) {
+      imageForm.n = 1
+      if (!['low', 'medium'].includes(imageForm.quality)) imageForm.quality = 'medium'
+    }
   })
 
   return {

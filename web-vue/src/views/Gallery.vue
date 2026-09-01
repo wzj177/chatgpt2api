@@ -33,6 +33,15 @@
             selected-indicator="none"
           />
         </div>
+        <div class="gallery-filter-field">
+          <GroupedSelectMenu
+            v-model="providerFilter"
+            :options="providerOptions"
+            placeholder="全部模型商"
+            selected-indicator="none"
+            aria-label="模型商筛选"
+          />
+        </div>
         <DateRangeInputs
           v-model:start="startDate"
           v-model:end="endDate"
@@ -365,6 +374,12 @@ const hasLoadedOnce = galleryQueryRuntime.hasLoadedOnce
 const galleryLoadError = galleryQueryRuntime.galleryLoadError
 const tagFilter = galleryQueryRuntime.tagFilter
 const searchQuery = galleryQueryRuntime.searchQuery
+const providerFilter = galleryQueryRuntime.providerFilter
+const providerOptions = [
+  { label: '全部模型商', value: '' },
+  { label: 'GPT', value: 'gpt' },
+  { label: 'Grok', value: 'grok' },
+]
 const startDate = galleryQueryRuntime.startDate
 const endDate = galleryQueryRuntime.endDate
 const pageSize = galleryQueryRuntime.pageSize

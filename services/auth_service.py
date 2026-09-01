@@ -49,6 +49,7 @@ class AuthService:
         self._revision: str | None = None
         self._last_used_flush_at: dict[str, datetime] = {}
         self._image_quota_reservations: dict[str, tuple[str, int]] = {}
+        self._grok_quota_reservations: dict[str, tuple[str, int]] = {}
         self._last_snapshot_refresh_attempt_at = 0.0
         self._last_snapshot_refresh_success_at = 0.0
         self._reload_locked(suppress_errors=True)
@@ -97,6 +98,8 @@ class AuthService:
             "daily_image_date": self._clean(raw.get("daily_image_date")) or None,
             "daily_image_count": max(0, int(raw.get("daily_image_count") or 0)),
             "daily_image_bonus": max(0, int(raw.get("daily_image_bonus") or 0)),
+            "daily_grok_image_date": self._clean(raw.get("daily_grok_image_date")) or None,
+            "daily_grok_image_count": max(0, int(raw.get("daily_grok_image_count") or 0)),
             "login_count": max(0, int(raw.get("login_count") or 0)),
             "oauth_provider": oauth_provider,
             "oauth_subject": self._clean(raw.get("oauth_subject")) or None,
@@ -245,10 +248,105 @@ class AuthService:
             "usage_count": int(item.get("usage_count") or 0),
             "daily_image_count": daily_image_count,
             "daily_image_bonus": daily_image_bonus,
+            "daily_grok_image_count": (
+                max(0, int(item.get("daily_grok_image_count") or 0))
+                if str(item.get("daily_grok_image_date") or "") == _today_iso() else 0
+            ),
             "login_count": int(item.get("login_count") or 0),
             "registration_source": source,
             "registration_source_label": source_label,
         }
+
+    def is_grok_eligible(self, user_id: str) -> bool:
+        if not self._clean(user_id):
+            return False
+        from services.config import config
+        if not bool(config.grok_image.get("enabled")):
+            return False
+        with self._lock:
+            users = [
+                item
+                for item in self._items
+                if item.get("role") == "user"
+                and item.get("registration_source") == "linuxdo"
+                and bool(item.get("enabled", True))
+            ]
+            users.sort(key=lambda item: max(0, int(item.get("usage_count") or 0)), reverse=True)
+            limit = max(0, int(config.grok_image.get("linuxdo_user_limit") or 40))
+            allowed = users if limit == 0 else users[:limit]
+            return any(self._clean(item.get("id")) == self._clean(user_id) for item in allowed)
+
+    def grok_daily_image_limit(self, user_id: str, configured_limit: int) -> int:
+        if not self.is_grok_eligible(user_id):
+            return 0
+        with self._lock:
+            self._reload_locked(suppress_errors=True)
+            active_users = sum(
+                1
+                for candidate in self._items
+                if candidate.get("role") == "user"
+                and candidate.get("registration_source") == "linuxdo"
+                and bool(candidate.get("enabled", True))
+                and self._clean(candidate.get("last_used_at"))[:10] == _today_iso()
+            )
+        normalized = max(2, min(10, int(configured_limit or 10)))
+        return max(2, min(10, (normalized * 40) // max(1, active_users)))
+
+    def reserve_grok_images(self, user_id: str, count: int, limit: int) -> str:
+        if not self.is_grok_eligible(user_id):
+            raise ImageQuotaExceededError("当前账号没有 Grok 图片权限")
+        requested = max(1, int(count or 1))
+        with self._lock:
+            self._reload_locked()
+            index = self._find_item_index_locked(user_id, role="user")
+            if index is None:
+                raise ValueError("用户不存在或已被删除")
+            item = self._items[index]
+            used = max(0, int(item.get("daily_grok_image_count") or 0)) if self._clean(item.get("daily_grok_image_date")) == _today_iso() else 0
+            reserved = sum(value for uid, value in self._grok_quota_reservations.values() if uid == user_id)
+            configured_limit = max(2, min(10, int(limit or 10)))
+            active_users = sum(
+                1
+                for candidate in self._items
+                if candidate.get("role") == "user"
+                and candidate.get("registration_source") == "linuxdo"
+                and bool(candidate.get("enabled", True))
+                and self._clean(candidate.get("last_used_at"))[:10] == _today_iso()
+            )
+            # Treat the configured maximum as a 40-user daily pool. More active
+            # Linux.do users therefore reduce each user's dynamic allowance.
+            effective = max(2, min(10, (configured_limit * 40) // max(1, active_users)))
+            if used + reserved + requested > effective:
+                raise ImageQuotaExceededError(f"今日 Grok 生图额度已用尽（{effective} 张）")
+            reservation_id = uuid.uuid4().hex
+            self._grok_quota_reservations[reservation_id] = (user_id, requested)
+            return reservation_id
+
+    def release_grok_images(self, reservation_id: str) -> None:
+        with self._lock:
+            self._grok_quota_reservations.pop(self._clean(reservation_id), None)
+
+    def complete_grok_images(self, reservation_id: str, count: int) -> dict[str, object] | None:
+        with self._lock:
+            reservation = self._grok_quota_reservations.pop(self._clean(reservation_id), None)
+        if reservation is None:
+            return None
+        user_id, reserved = reservation
+        increment = min(reserved, max(0, int(count or 0)))
+        if increment <= 0:
+            return None
+        with self._lock:
+            index = self._find_item_index_locked(user_id, role="user")
+            if index is None:
+                return None
+            item = dict(self._items[index])
+            today = _today_iso()
+            current = max(0, int(item.get("daily_grok_image_count") or 0)) if self._clean(item.get("daily_grok_image_date")) == today else 0
+            item["daily_grok_image_date"] = today
+            item["daily_grok_image_count"] = current + increment
+            result = self.storage.mutate_auth_keys(StorageMutation(upserts=(item,), expected_revision=self._revision))
+            self._set_cached_item_locked(item, result.revision)
+            return self._public_item(item)
 
     def list_keys(self, role: AuthRole | None = None) -> list[dict[str, object]]:
         with self._lock:

@@ -63,6 +63,7 @@ class CallRecordWrite:
     outcome: str
     endpoint: str = ""
     model: str = ""
+    provider: str = ""
     account_email: str = ""
     conversation_id: str = ""
     business_kind: str = ""
@@ -77,6 +78,7 @@ class CallRecordQuery:
     outcomes: tuple[str, ...] = ()
     endpoint: str = ""
     model: str = ""
+    provider: str = ""
     account_email: str = ""
     conversation_id: str = ""
     search: str = ""
@@ -169,6 +171,11 @@ class CallRecordRepository:
             filters.append(CallRecordModel.endpoint == query.endpoint)
         if query.model:
             filters.append(CallRecordModel.model == query.model)
+        if query.provider:
+            filters.append(
+                CallRecordModel.model.like("grok-%") if query.provider == "grok"
+                else ~CallRecordModel.model.like("grok-%")
+            )
         if query.account_email:
             filters.append(CallRecordModel.account_email == query.account_email)
         if query.conversation_id:

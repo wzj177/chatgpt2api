@@ -738,6 +738,7 @@ def build_call_summary(item: Mapping[str, Any], *, error_limit: int = _SUMMARY_E
         "display_status": display_status,
         "endpoint": _clean(_value(item, "endpoint")),
         "model": _clean(_value(item, "model")),
+        "provider": "grok" if _clean(_value(item, "model")).startswith("grok-") else "gpt",
         "started_at": _clean(_value(item, "started_at")),
         "ended_at": _clean(_value(item, "ended_at")),
         "duration_ms": _duration_ms(item),

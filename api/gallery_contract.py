@@ -32,6 +32,7 @@ class GalleryRow(BaseModel):
     created_at: str
     date: str
     media_type: GalleryMediaType
+    provider: str = "gpt"
     expired: bool
     expires_at: str | None
     expires_in_seconds: int | None = Field(default=None, ge=0)

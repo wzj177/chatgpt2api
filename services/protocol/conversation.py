@@ -347,6 +347,7 @@ def save_image_bytes(
         *,
         deadline_monotonic: float | None = None,
         owner_id: str = "",
+        model: str = "",
 ) -> str:
     last_error: Exception | None = None
     for attempt in range(2):
@@ -356,6 +357,7 @@ def save_image_bytes(
                 base_url,
                 deadline_monotonic=deadline_monotonic,
                 owner_id=owner_id,
+                model=model,
             ).url
         except ImageFailureError as exc:
             if exc.failure.code == "task_interrupted":
@@ -493,6 +495,7 @@ def format_image_result(
     requested_size: str | None = None,
     deadline_monotonic: float | None = None,
     owner_id: str = "",
+    model: str = "",
 ) -> dict[str, Any]:
     data: list[dict[str, Any]] = []
     image_urls: list[str] = []
@@ -508,6 +511,7 @@ def format_image_result(
             base_url,
             deadline_monotonic=deadline_monotonic,
             owner_id=owner_id,
+            model=model,
         )
         if stored_url:
             image_urls.append(stored_url)
@@ -1629,6 +1633,7 @@ def _image_result_output_from_urls(
         requested_size=request.size,
         deadline_monotonic=request.deadline_monotonic or None,
         owner_id=request.owner_id,
+        model=request.model,
     )
     data = formatted["data"]
     if not data:
@@ -2017,6 +2022,7 @@ def stream_codex_image_outputs(
         requested_size=request.size,
         deadline_monotonic=request.deadline_monotonic or None,
         owner_id=request.owner_id,
+        model=request.model,
     )
     data = formatted["data"]
     if data:
