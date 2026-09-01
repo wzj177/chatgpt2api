@@ -271,6 +271,22 @@ class AuthService:
         if not is_grok_configured():
             return False
         with self._lock:
+            self._reload_locked(suppress_errors=True)
+            today = _today_iso()
+            manual_grant = next(
+                (
+                    item
+                    for item in self._items
+                    if self._clean(item.get("id")) == self._clean(user_id)
+                    and item.get("role") == "user"
+                    and bool(item.get("enabled", True))
+                    and self._clean(item.get("daily_grok_image_date")) == today
+                    and max(0, int(item.get("daily_grok_image_bonus") or 0)) > 0
+                ),
+                None,
+            )
+            if manual_grant is not None:
+                return True
             users = [
                 item
                 for item in self._items
@@ -325,7 +341,7 @@ class AuthService:
             # Linux.do users therefore reduce each user's dynamic allowance.
             effective = max(2, min(10, (configured_limit * 40) // max(1, active_users)))
             if used + reserved + requested > effective + bonus:
-                raise ImageQuotaExceededError(f"今日 Grok 生图额度已用尽（{effective} 张）")
+                raise ImageQuotaExceededError(f"今日 Grok 生图额度已用尽（{effective + bonus} 张）")
             reservation_id = uuid.uuid4().hex
             self._grok_quota_reservations[reservation_id] = (user_id, requested)
             return reservation_id

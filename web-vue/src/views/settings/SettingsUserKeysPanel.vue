@@ -129,6 +129,8 @@
             <div>
               <p class="text-muted-foreground">Grok 成功</p>
               <p class="mt-1 font-semibold tabular-nums text-foreground">{{ item.grok_usage_count || 0 }}</p>
+              <p class="mt-1 text-xs text-muted-foreground">今日 {{ item.daily_grok_image_count || 0 }}</p>
+              <p v-if="item.daily_grok_image_bonus" class="mt-1 text-xs text-emerald-600">额外 +{{ item.daily_grok_image_bonus }}</p>
             </div>
           </div>
         </td>
