@@ -36,6 +36,7 @@ from contracts.settings_specification import (
     normalize_integer_setting,
     numeric_setting_spec,
 )
+from services.auth_service import auth_service
 from services.config import (
     DEFAULT_BACKUP_INCLUDE,
     DEFAULT_GENBOX_PUSH,
