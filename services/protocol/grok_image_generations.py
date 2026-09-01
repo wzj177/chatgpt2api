@@ -8,6 +8,7 @@ from curl_cffi import requests
 
 from services.config import _is_valid_http_url, config
 from services.protocol.conversation import format_image_result
+from utils.log import logger
 
 GROK_IMAGE_MODELS = {"grok-imagine-image-2.0", "grok-imagine-image"}
 
@@ -43,19 +44,25 @@ def handle(body: dict[str, Any]) -> dict[str, Any]:
     quality = str(body.get("quality") or "medium").strip().lower()
     if quality not in {"low", "medium"}:
         quality = "medium"
-    response = requests.post(
-        f"{base_url}/images/generations",
-        headers={"Authorization": f"Bearer {settings['api_key']}", "Content-Type": "application/json"},
-        json={
-            "model": model,
-            "prompt": prompt,
-            "n": 1,
-            "aspect_ratio": ratio,
-            "resolution": resolution,
-            "quality": quality,
-        },
-        timeout=120,
-    )
+    target_url = f"{base_url}/images/generations"
+    logger.info({"event": "grok_image_upstream_request", "target_url": target_url})
+    try:
+        response = requests.post(
+            target_url,
+            headers={"Authorization": f"Bearer {settings['api_key']}", "Content-Type": "application/json"},
+            json={
+                "model": model,
+                "prompt": prompt,
+                "n": 1,
+                "aspect_ratio": ratio,
+                "resolution": resolution,
+                "quality": quality,
+            },
+            timeout=120,
+            trust_env=False,
+        )
+    except Exception as exc:
+        raise ValueError(f"Grok 上游连接失败（目标地址：{target_url}）：{exc}") from exc
     if response.status_code >= 400:
         try:
             upstream_error = response.text.strip()
