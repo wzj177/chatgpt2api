@@ -287,7 +287,12 @@ import {
   IMAGE_COUNT_OPTIONS,
   IMAGE_QUALITY_OPTIONS,
   formatImageSizeLabel,
+  formatGrokImageSizeLabel,
+  GROK_IMAGE_RATIOS,
+  GROK_IMAGE_RESOLUTIONS,
+  createGrokImageSize,
   isGrokImageModel,
+  parseGrokImageSize,
   resolveImageSizePresets,
   type ImageSizeResolution,
 } from '@/api/imageTasks'
@@ -425,9 +430,17 @@ const imageCountOptions = computed(() => isGrokImageModel(props.imageForm.model)
 
 const sizePresets = computed(() => resolveImageSizePresets(props.imageHighResolutionEnabled))
 const selectedPreset = computed(() => sizePresets.value.find((preset) => preset.value === props.imageForm.size))
-const selectedRatio = computed(() => selectedPreset.value?.ratio || 'auto')
-const selectedResolution = computed(() => selectedPreset.value?.resolution || 'auto')
+const grokSize = computed(() => parseGrokImageSize(props.imageForm.size))
+const selectedRatio = computed(() => isGrokImageModel(props.imageForm.model)
+  ? (grokSize.value?.ratio || '1:1')
+  : (selectedPreset.value?.ratio || 'auto'))
+const selectedResolution = computed(() => isGrokImageModel(props.imageForm.model)
+  ? (grokSize.value?.resolution || '1k')
+  : (selectedPreset.value?.resolution || 'auto'))
 const ratioOptions = computed(() => {
+  if (isGrokImageModel(props.imageForm.model)) {
+    return GROK_IMAGE_RATIOS.map((value) => ({ label: value, value }))
+  }
   const seen = new Set<string>()
   return sizePresets.value
     .filter((preset) => {
@@ -438,11 +451,16 @@ const ratioOptions = computed(() => {
     .map((preset) => ({ label: preset.ratio === 'auto' ? '自动' : preset.ratio, value: preset.ratio }))
 })
 const resolutionOptions = computed(() => {
+  if (isGrokImageModel(props.imageForm.model)) {
+    return GROK_IMAGE_RESOLUTIONS.map((value) => ({ label: value, value }))
+  }
   const order: ImageSizeResolution[] = ['auto', '1K', '2K', '4K']
   const values = new Set(sizePresets.value.map((preset) => preset.resolution))
   return order.filter((value) => values.has(value)).map((value) => ({ label: value === 'auto' ? '自动' : value, value }))
 })
-const selectedSizeDetailLabel = computed(() => formatImageSizeLabel(props.imageForm.size))
+const selectedSizeDetailLabel = computed(() => isGrokImageModel(props.imageForm.model)
+  ? formatGrokImageSizeLabel(props.imageForm.size)
+  : formatImageSizeLabel(props.imageForm.size))
 const canAttachReferences = computed(() => props.mode === 'image' || props.mode === 'chat' || props.mode === 'file')
 const selectedChatModelLabel = computed(() => chatModelSelectOptions.value.find((option) => option.value === props.chatModel)?.label || props.chatModel || '自动模型')
 const selectedReasoningEffortLabel = computed(() => {
@@ -586,6 +604,10 @@ function syncComposerHeight() {
 }
 
 function selectRatio(ratio: string) {
+  if (isGrokImageModel(props.imageForm.model)) {
+    emit('update:imageSize', createGrokImageSize(selectedResolution.value, ratio))
+    return
+  }
   const auto = sizePresets.value.find((preset) => preset.value === DEFAULT_IMAGE_SIZE)
   if (ratio === 'auto') {
     emit('update:imageSize', auto?.value || DEFAULT_IMAGE_SIZE)
@@ -598,7 +620,11 @@ function selectRatio(ratio: string) {
   emit('update:imageSize', next?.value || DEFAULT_IMAGE_SIZE)
 }
 
-function selectResolution(resolution: ImageSizeResolution) {
+function selectResolution(resolution: string) {
+  if (isGrokImageModel(props.imageForm.model)) {
+    emit('update:imageSize', createGrokImageSize(resolution, selectedRatio.value))
+    return
+  }
   const auto = sizePresets.value.find((preset) => preset.value === DEFAULT_IMAGE_SIZE)
   if (resolution === 'auto') {
     emit('update:imageSize', auto?.value || DEFAULT_IMAGE_SIZE)

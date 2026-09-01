@@ -366,7 +366,6 @@ const canUseGrokImage = computed(() => imageModelOptions.value.some(isGrokImageM
 function selectImageProvider(provider: 'gpt' | 'grok') {
   composeMode.value = 'image'
   imageForm.model = provider === 'grok' ? 'grok-imagine-image-2.0' : 'gpt-image-2'
-  if (provider === 'grok') imageForm.n = 1
 }
 
 const conversations = ref<StudioConversation[]>(persistedConversationState.conversations)

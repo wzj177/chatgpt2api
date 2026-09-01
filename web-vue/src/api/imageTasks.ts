@@ -64,6 +64,22 @@ export const DEFAULT_IMAGE_MODEL = 'gpt-image-2'
 export const DEFAULT_IMAGE_QUALITY = 'auto'
 export const DEFAULT_IMAGE_SIZE = 'auto'
 export const GROK_IMAGE_MODELS = ['grok-imagine-image-2.0', 'grok-imagine-image'] as const
+export const GROK_IMAGE_RATIOS = ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'] as const
+export const GROK_IMAGE_RESOLUTIONS = ['1k', '2k'] as const
+
+export function createGrokImageSize(resolution: string, ratio: string) {
+  return `grok:${resolution}:${ratio}`
+}
+
+export function parseGrokImageSize(value: string) {
+  const match = String(value || '').match(/^grok:(1k|2k):(1:1|16:9|9:16|4:3|3:4|3:2|2:3)$/)
+  return match ? { resolution: match[1], ratio: match[2] } : null
+}
+
+export function formatGrokImageSizeLabel(value: string) {
+  const parsed = parseGrokImageSize(value)
+  return parsed ? `${parsed.ratio} · ${parsed.resolution}` : value
+}
 
 export function isGrokImageModel(model: string) {
   return (GROK_IMAGE_MODELS as readonly string[]).includes(model)

@@ -3,6 +3,7 @@ import {
   DEFAULT_IMAGE_MODEL,
   DEFAULT_IMAGE_QUALITY,
   DEFAULT_IMAGE_SIZE,
+  createGrokImageSize,
   isImageSizeSupportedByModel,
   isGrokImageModel,
 } from '@/api/imageTasks'
@@ -24,6 +25,18 @@ export function useStudioModelFormRuntime() {
     quality: DEFAULT_IMAGE_QUALITY,
     n: 1,
   })
+  const providerForms: Record<'gpt' | 'grok', Omit<StudioImageForm, 'model'>> = {
+    gpt: {
+      size: DEFAULT_IMAGE_SIZE,
+      quality: DEFAULT_IMAGE_QUALITY,
+      n: 1,
+    },
+    grok: {
+      size: createGrokImageSize('1k', '1:1'),
+      quality: 'medium',
+      n: 1,
+    },
+  }
 
   const chatModelOptions = computed(() => (
     catalog.value ? [...chatModels.value] : uniqueStrings([chatModel.value])
@@ -44,6 +57,18 @@ export function useStudioModelFormRuntime() {
   watch(() => imageForm.model, (model) => {
     setStringPreference(preferenceKeys.studioImageModel, model || DEFAULT_IMAGE_MODEL)
   })
+  watch(() => imageForm.model, (model, previousModel) => {
+    if (!previousModel) return
+    const previousProvider = isGrokImageModel(previousModel) ? 'grok' : 'gpt'
+    const nextProvider = isGrokImageModel(model) ? 'grok' : 'gpt'
+    if (previousProvider === nextProvider) return
+    providerForms[previousProvider] = {
+      size: imageForm.size,
+      quality: imageForm.quality,
+      n: imageForm.n,
+    }
+    Object.assign(imageForm, providerForms[nextProvider])
+  })
   watch(catalog, (value) => {
     if (!value) return
     if (!value.chat_models.includes(chatModel.value)) {
@@ -54,12 +79,16 @@ export function useStudioModelFormRuntime() {
     }
   }, { immediate: true })
   watch([() => imageForm.model, imageHighResolutionEnabled], ([, highResolutionEnabled]) => {
-    if (!isImageSizeSupportedByModel(imageForm.size, highResolutionEnabled)) imageForm.size = DEFAULT_IMAGE_SIZE
     if (isGrokImageModel(imageForm.model)) {
-      imageForm.n = 1
       if (!['low', 'medium'].includes(imageForm.quality)) imageForm.quality = 'medium'
+      if (!/^grok:(1k|2k):(1:1|16:9|9:16|4:3|3:4|3:2|2:3)$/.test(imageForm.size)) {
+        imageForm.size = createGrokImageSize('1k', '1:1')
+      }
+      imageForm.n = 1
+      return
     }
-  })
+    if (!isImageSizeSupportedByModel(imageForm.size, highResolutionEnabled)) imageForm.size = DEFAULT_IMAGE_SIZE
+  }, { immediate: true })
 
   return {
     chatModel,

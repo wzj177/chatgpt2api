@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import re
-from math import gcd
 from typing import Any
 
 from curl_cffi import requests
@@ -37,12 +36,12 @@ def handle(body: dict[str, Any]) -> dict[str, Any]:
     if not prompt:
         raise ValueError("prompt is required")
     size = str(body.get("size") or "").strip().lower()
-    ratio: str | None = None
-    match = re.fullmatch(r"(\d+)\s*x\s*(\d+)", size)
-    if match:
-        width, height = int(match.group(1)), int(match.group(2))
-        divisor = gcd(width, height)
-        ratio = f"{width // divisor}:{height // divisor}"
+    size_match = re.fullmatch(r"grok:(1k|2k):(1:1|16:9|9:16|4:3|3:4|3:2|2:3)", size)
+    resolution = size_match.group(1) if size_match else "1k"
+    ratio = size_match.group(2) if size_match else "1:1"
+    quality = str(body.get("quality") or "medium").strip().lower()
+    if quality not in {"low", "medium"}:
+        quality = "medium"
     response = requests.post(
         f"{str(settings['base_url']).rstrip('/')}/images/generations",
         headers={"Authorization": f"Bearer {settings['api_key']}", "Content-Type": "application/json"},
@@ -50,13 +49,24 @@ def handle(body: dict[str, Any]) -> dict[str, Any]:
             "model": model,
             "prompt": prompt,
             "n": 1,
-            "quality": str(body.get("quality") or "medium"),
-            **({"aspect_ratio": ratio} if ratio else {}),
+            "aspect_ratio": ratio,
+            "resolution": resolution,
+            "quality": quality,
         },
         timeout=120,
     )
     if response.status_code >= 400:
-        raise ValueError(f"Grok 图片生成失败（HTTP {response.status_code}）")
+        try:
+            upstream_error = response.text.strip()
+        except Exception:
+            upstream_error = ""
+        api_key = str(settings.get("api_key") or "").strip()
+        if api_key:
+            upstream_error = upstream_error.replace(api_key, "[REDACTED]")
+        if len(upstream_error) > 1000:
+            upstream_error = upstream_error[:1000] + "..."
+        detail = f"：{upstream_error}" if upstream_error else ""
+        raise ValueError(f"Grok 图片生成失败（HTTP {response.status_code}）{detail}")
     payload = response.json()
     data = payload.get("data") if isinstance(payload, dict) else None
     if not isinstance(data, list) or not data:
