@@ -108,6 +108,7 @@ class UserKeyView(_StrictModel):
     daily_image_bonus: int = 0
     daily_image_remaining: int = 0
     daily_image_base_remaining: int = 0
+    daily_grok_image_count: int = 0
     login_count: int = 0
     registration_source: str = "email"
     registration_source_label: str = "邮箱注册"

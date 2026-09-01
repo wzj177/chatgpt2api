@@ -260,8 +260,8 @@ class AuthService:
     def is_grok_eligible(self, user_id: str) -> bool:
         if not self._clean(user_id):
             return False
-        from services.config import config
-        if not bool(config.grok_image.get("enabled")):
+        from services.protocol.grok_image_generations import is_grok_configured
+        if not is_grok_configured():
             return False
         with self._lock:
             users = [

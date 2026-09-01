@@ -186,6 +186,9 @@ def get_model_catalog(identity: dict[str, object] | None = None) -> ModelCatalog
     view = model_catalog_service.view()
     if not identity:
         return view
+    from services.protocol.grok_image_generations import is_grok_configured
+    if not is_grok_configured():
+        return view
     if str(identity.get("role") or "") != "admin" and not auth_service.is_grok_eligible(str(identity.get("id") or "")):
         return view
     return view.model_copy(update={

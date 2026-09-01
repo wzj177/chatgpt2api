@@ -14,6 +14,7 @@ export interface UserKey {
   daily_image_bonus: number
   daily_image_remaining: number
   daily_image_base_remaining: number
+  daily_grok_image_count: number
   login_count: number
   registration_source: string
   registration_source_label: string

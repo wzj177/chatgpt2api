@@ -17,10 +17,19 @@ def is_grok_image_model(model: object) -> bool:
     return str(model or "").strip() in GROK_IMAGE_MODELS
 
 
+def is_grok_configured() -> bool:
+    settings = config.grok_image
+    return bool(
+        settings.get("enabled")
+        and str(settings.get("api_key") or "").strip()
+        and str(settings.get("base_url") or "").strip()
+    )
+
+
 def handle(body: dict[str, Any]) -> dict[str, Any]:
     settings = config.grok_image
-    if not settings.get("enabled") or not str(settings.get("api_key") or "").strip():
-        raise ValueError("Grok 图片生成尚未配置 API Key")
+    if not is_grok_configured():
+        raise ValueError("Grok 图片生成尚未完成系统配置，请先设置 API Key 和 Base URL")
     model = str(body.get("model") or "grok-imagine-image-2.0").strip()
     if not is_grok_image_model(model):
         raise ValueError("不支持的 Grok 图片模型")
