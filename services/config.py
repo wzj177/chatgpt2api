@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import ipaddress
 import math
 import os
 import re
@@ -420,6 +421,36 @@ def _normalize_grok_image_settings(value: object) -> dict[str, object]:
     return normalized
 
 
+def _is_valid_http_url(value: object) -> bool:
+    raw = str(value or "").strip()
+    if not raw:
+        return False
+    try:
+        parsed = urlsplit(raw)
+        # Accessing port also validates malformed port values such as :abc.
+        parsed.port
+    except ValueError:
+        return False
+    if not (
+        parsed.scheme in {"http", "https"}
+        and parsed.hostname
+        and not parsed.username
+        and not parsed.password
+        and not parsed.query
+        and not parsed.fragment
+    ):
+        return False
+    hostname = parsed.hostname.lower().rstrip(".")
+    if hostname == "localhost":
+        return False
+    try:
+        if ipaddress.ip_address(hostname).is_loopback:
+            return False
+    except ValueError:
+        pass
+    return True
+
+
 def _legacy_basic_from_settings(value: object, settings: dict[str, object]) -> dict[str, object]:
     source = dict(value) if isinstance(value, dict) else {}
     source["proxy"] = str(settings.get("proxy") or "").strip()
@@ -472,6 +503,14 @@ def _validate_genbox_push_settings(settings: dict[str, object]) -> None:
         raise ValueError("GenBox 来源 ID 格式无效")
     if not str(settings.get("push_key") or "").strip():
         raise ValueError("启用 GenBox Push 后必须填写 Push Key")
+
+
+def _validate_grok_image_settings(settings: dict[str, object]) -> None:
+    if not _is_valid_http_url(settings.get("base_url")):
+        raise ValueError(
+            "Grok Base URL 必须是有效的外部 HTTP 或 HTTPS 地址，例如 https://api.x.ai/v1；"
+            "不能填写 localhost 或 127.0.0.1 等本服务容器地址"
+        )
 
 
 def _normalize_auth_key(value: object) -> str:
@@ -931,6 +970,7 @@ class ConfigStore:
                 updates["oauth"] = _normalize_oauth_settings(updates.get("oauth"))
             if "grok_image" in updates:
                 updates["grok_image"] = _normalize_grok_image_settings(updates.get("grok_image"))
+                _validate_grok_image_settings(updates["grok_image"])
             if "proxy_runtime" in updates:
                 incoming_runtime = updates.get("proxy_runtime")
                 if isinstance(incoming_runtime, dict):

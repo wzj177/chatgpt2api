@@ -16,6 +16,7 @@
         </FormField>
         <FormField label="Base URL">
           <Input v-model.trim="settings.grok_image.base_url" block :disabled="fieldReadOnly('grok_image.base_url')" />
+          <p class="mt-1 text-xs text-muted-foreground">请输入完整的 HTTP(S) 地址，例如 https://api.x.ai/v1，不要填写本服务容器地址。</p>
         </FormField>
         <FormField label="Linux.do 用户数">
           <Input v-model.number="settings.grok_image.linuxdo_user_limit" type="number" block :disabled="fieldReadOnly('grok_image.linuxdo_user_limit')" />

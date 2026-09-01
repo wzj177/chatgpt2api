@@ -7,7 +7,7 @@ from typing import Any
 
 from curl_cffi import requests
 
-from services.config import config
+from services.config import _is_valid_http_url, config
 from services.protocol.conversation import format_image_result
 
 GROK_IMAGE_MODELS = {"grok-imagine-image-2.0", "grok-imagine-image"}
@@ -22,7 +22,7 @@ def is_grok_configured() -> bool:
     return bool(
         settings.get("enabled")
         and str(settings.get("api_key") or "").strip()
-        and str(settings.get("base_url") or "").strip()
+        and _is_valid_http_url(settings.get("base_url"))
     )
 
 

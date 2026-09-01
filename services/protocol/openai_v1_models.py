@@ -44,8 +44,8 @@ def _append_upstream_models(data: list[Any], seen: set[str]) -> None:
     )
 
 
-def list_models() -> dict[str, Any]:
-    catalog = get_model_catalog()
+def list_models(identity: dict[str, object] | None = None) -> dict[str, Any]:
+    catalog = get_model_catalog(identity)
     data: list[Any] = []
     seen: set[str] = set()
     _append_models(data, seen, catalog.chat_models)
