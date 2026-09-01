@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import re
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from curl_cffi import requests
 
@@ -11,6 +12,7 @@ from services.protocol.conversation import format_image_result
 from utils.log import logger
 
 GROK_IMAGE_MODELS = {"grok-imagine-image-2.0", "grok-imagine-image"}
+GROK_LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
 
 
 def is_grok_image_model(model: object) -> bool:
@@ -24,6 +26,16 @@ def is_grok_configured() -> bool:
         and str(settings.get("api_key") or "").strip()
         and _is_valid_http_url(settings.get("base_url"))
     )
+
+
+def _resolve_media_url(url: str, base_url: str) -> str:
+    parsed = urlsplit(url)
+    upstream = urlsplit(base_url)
+    if not parsed.scheme or not parsed.netloc:
+        return urlunsplit((upstream.scheme, upstream.netloc, parsed.path, parsed.query, parsed.fragment))
+    if (parsed.hostname or "").lower().rstrip(".") not in GROK_LOCAL_HOSTS:
+        return url
+    return urlunsplit((upstream.scheme, upstream.netloc, parsed.path, parsed.query, parsed.fragment))
 
 
 def handle(body: dict[str, Any]) -> dict[str, Any]:
@@ -44,6 +56,11 @@ def handle(body: dict[str, Any]) -> dict[str, Any]:
     quality = str(body.get("quality") or "medium").strip().lower()
     if quality not in {"low", "medium"}:
         quality = "medium"
+    response_format = str(body.get("response_format") or "url").strip().lower()
+    if response_format not in {"url", "b64_json"}:
+        raise ValueError("Grok response_format 只支持 url 或 b64_json")
+    if bool(body.get("stream")):
+        raise ValueError("Grok 图片任务暂不支持 stream=true，请使用 stream=false")
     target_url = f"{base_url}/images/generations"
     logger.info({"event": "grok_image_upstream_request", "target_url": target_url})
     try:
@@ -57,6 +74,10 @@ def handle(body: dict[str, Any]) -> dict[str, Any]:
                 "aspect_ratio": ratio,
                 "resolution": resolution,
                 "quality": quality,
+                # Fetch bytes directly so Grok2API's container-local media URL
+                # never becomes a cross-container dependency.
+                "response_format": "b64_json",
+                "stream": False,
             },
             timeout=120,
         )
@@ -88,7 +109,11 @@ def handle(body: dict[str, Any]) -> dict[str, Any]:
         url = str(item.get("url") or "").strip()
         if not url:
             continue
-        image_response = requests.get(url, timeout=120)
+        media_url = _resolve_media_url(url, base_url)
+        if media_url != url:
+            logger.info({"event": "grok_image_media_url_rewritten", "target_url": media_url})
+        media_headers = {"Authorization": f"Bearer {settings['api_key']}"} if media_url != url else None
+        image_response = requests.get(media_url, headers=media_headers, timeout=120)
         if image_response.status_code >= 400:
             raise ValueError("Grok 图片下载失败")
         image_items.append({"b64_json": base64.b64encode(image_response.content).decode("ascii")})
@@ -97,7 +122,7 @@ def handle(body: dict[str, Any]) -> dict[str, Any]:
     return format_image_result(
         image_items,
         prompt,
-        "url",
+        response_format,
         str(body.get("base_url") or ""),
         0,
         requested_size=body.get("size"),
