@@ -104,6 +104,7 @@ class UserKeyView(_StrictModel):
     email: str | None = None
     phone: str | None = None
     usage_count: int = 0
+    grok_usage_count: int = 0
     daily_image_count: int = 0
     daily_image_bonus: int = 0
     daily_image_remaining: int = 0

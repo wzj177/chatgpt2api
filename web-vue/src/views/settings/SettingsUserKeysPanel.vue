@@ -104,7 +104,7 @@
         </td>
 
         <td class="py-3 pr-5 align-top text-xs">
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-4 gap-3">
             <div>
               <p class="text-muted-foreground">今日成功</p>
               <p class="mt-1 font-semibold tabular-nums text-foreground">{{ item.daily_image_count || 0 }}</p>
@@ -118,6 +118,10 @@
             <div>
               <p class="text-muted-foreground">累计成功</p>
               <p class="mt-1 font-semibold tabular-nums text-foreground">{{ item.usage_count || 0 }}</p>
+            </div>
+            <div>
+              <p class="text-muted-foreground">Grok 成功</p>
+              <p class="mt-1 font-semibold tabular-nums text-foreground">{{ item.grok_usage_count || 0 }}</p>
             </div>
           </div>
         </td>

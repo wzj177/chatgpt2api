@@ -95,6 +95,7 @@ class AuthService:
             "password_hash": self._clean(raw.get("password_hash")) or None,
             "terms_accepted_at": self._clean(raw.get("terms_accepted_at")) or None,
             "usage_count": max(0, int(raw.get("usage_count") or 0)),
+            "grok_usage_count": max(0, int(raw.get("grok_usage_count") or 0)),
             "daily_image_date": self._clean(raw.get("daily_image_date")) or None,
             "daily_image_count": max(0, int(raw.get("daily_image_count") or 0)),
             "daily_image_bonus": max(0, int(raw.get("daily_image_bonus") or 0)),
@@ -246,6 +247,7 @@ class AuthService:
             "email": item.get("email"),
             "phone": item.get("phone"),
             "usage_count": int(item.get("usage_count") or 0),
+            "grok_usage_count": int(item.get("grok_usage_count") or 0),
             "daily_image_count": daily_image_count,
             "daily_image_bonus": daily_image_bonus,
             "daily_grok_image_count": (
@@ -344,6 +346,7 @@ class AuthService:
             current = max(0, int(item.get("daily_grok_image_count") or 0)) if self._clean(item.get("daily_grok_image_date")) == today else 0
             item["daily_grok_image_date"] = today
             item["daily_grok_image_count"] = current + increment
+            item["grok_usage_count"] = max(0, int(item.get("grok_usage_count") or 0)) + increment
             result = self.storage.mutate_auth_keys(StorageMutation(upserts=(item,), expected_revision=self._revision))
             self._set_cached_item_locked(item, result.revision)
             return self._public_item(item)

@@ -10,6 +10,7 @@ export interface UserKey {
   email?: string | null
   phone?: string | null
   usage_count: number
+  grok_usage_count: number
   daily_image_count: number
   daily_image_bonus: number
   daily_image_remaining: number
