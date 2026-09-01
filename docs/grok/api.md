@@ -3,7 +3,7 @@ Grok Web 图片生成，支持 n、宽高比、1k/2k、URL、Base64 和扩展流
 POST /v1/images/generations
 接入信息
 Base URL
-http://127.0.0.1:8000/v1
+https://your-chatgpt2api.example/v1
 鉴权 Header
 Authorization: Bearer g2a_...
 请求参数
@@ -21,7 +21,7 @@ stream 是否使用图片生成扩展 SSE 流；默认 false。
 调用示例
 cURL grok-imagine-image-2.0
 export GROK2API_API_KEY="g2a_your_api_key"
-curl -X POST "http://127.0.0.1:8000/v1/images/generations" \
+curl -X POST "https://your-chatgpt2api.example/v1/images/generations" \
  -H "Authorization: Bearer $GROK2API_API_KEY" \
 请求 响应
 Grok2API © 2026 · Built by Chenyme
@@ -43,7 +43,7 @@ Grok Web 图片编辑，使用官方 JSON 图片 URL 协议。
 POST /v1/images/edits
 接入信息
 Base URL
-http://127.0.0.1:8000/v1
+https://your-chatgpt2api.example/v1
 鉴权 Header
 Authorization: Bearer g2a_...
 请求参数
@@ -59,7 +59,7 @@ response_format 图片返回格式，支持 url 或 b64_json。
 调用示例
 cURL grok-imagine-image-2.0
 export GROK2API_API_KEY="g2a_your_api_key"
-curl -X POST "http://127.0.0.1:8000/v1/images/edits" \
+curl -X POST "https://your-chatgpt2api.example/v1/images/edits" \
  -H "Authorization: Bearer $GROK2API_API_KEY" \
  -H "Content-Type: application/json" \
  -d '{

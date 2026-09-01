@@ -29,6 +29,7 @@ def handle(body: dict[str, Any]) -> dict[str, Any]:
     settings = config.grok_image
     if not is_grok_configured():
         raise ValueError("Grok 图片生成尚未完成系统配置，请先设置 API Key 和 Base URL")
+    base_url = str(settings["base_url"]).rstrip("/")
     model = str(body.get("model") or "grok-imagine-image-2.0").strip()
     if not is_grok_image_model(model):
         raise ValueError("不支持的 Grok 图片模型")
@@ -43,7 +44,7 @@ def handle(body: dict[str, Any]) -> dict[str, Any]:
     if quality not in {"low", "medium"}:
         quality = "medium"
     response = requests.post(
-        f"{str(settings['base_url']).rstrip('/')}/images/generations",
+        f"{base_url}/images/generations",
         headers={"Authorization": f"Bearer {settings['api_key']}", "Content-Type": "application/json"},
         json={
             "model": model,
