@@ -59,7 +59,6 @@ def handle(body: dict[str, Any]) -> dict[str, Any]:
                 "quality": quality,
             },
             timeout=120,
-            trust_env=False,
         )
     except Exception as exc:
         raise ValueError(f"Grok 上游连接失败（目标地址：{target_url}）：{exc}") from exc
