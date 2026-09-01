@@ -36,7 +36,14 @@
     </div>
 
     <div v-if="selectedIds.length" class="flex flex-wrap items-center gap-3 rounded-md border border-border bg-muted/20 p-3">
-      <span class="text-xs text-muted-foreground">增加今日剩余次数</span>
+      <ConsoleSegmentedTabs
+        v-model="bonusProvider"
+        class="max-w-xs"
+        fit="content"
+        :options="bonusProviderOptions"
+        aria-label="调整生图额度类型"
+      />
+      <span class="text-xs text-muted-foreground">增加今日{{ bonusProvider === 'grok' ? 'Grok ' : '' }}剩余次数</span>
       <Input v-model="bonusCount" type="number" min="1" max="10000" class="w-24" aria-label="增加今日次数" />
       <Button size="sm" variant="primary" :disabled="userKeyBusy !== ''" @click="adjustSelectedUsers">
         {{ userKeyBusy === 'bulk-daily-image' ? '调整中...' : '确认增加' }}
@@ -188,12 +195,17 @@ const emit = defineEmits<{
   edit: [item: UserKey]
   toggle: [item: UserKey]
   delete: [item: UserKey]
-  adjustDailyImages: [userIds: string[], count: number]
+  adjustDailyImages: [userIds: string[], count: number, provider: 'gpt' | 'grok']
 }>()
 
 const sortMode = ref<SegmentedValue>('last_used')
 const selectedIds = ref<string[]>([])
 const bonusCount = ref(1)
+const bonusProvider = ref<SegmentedValue>('gpt')
+const bonusProviderOptions = [
+  { value: 'gpt', label: 'GPT 额度' },
+  { value: 'grok', label: 'Grok 额度' },
+]
 const allVisibleSelected = computed(() => (
   props.userKeys.length > 0 && props.userKeys.every(item => selectedIds.value.includes(item.id))
 ))
@@ -214,7 +226,7 @@ function toggleAllVisible(selected: boolean) {
 function adjustSelectedUsers() {
   const count = Math.trunc(Number(bonusCount.value))
   if (!Number.isFinite(count) || count < 1 || count > 10000) return
-  emit('adjustDailyImages', [...selectedIds.value], count)
+  emit('adjustDailyImages', [...selectedIds.value], count, String(bonusProvider.value) === 'grok' ? 'grok' : 'gpt')
 }
 
 watch(() => props.userKeys, () => {

@@ -101,6 +101,7 @@ class AuthService:
             "daily_image_bonus": max(0, int(raw.get("daily_image_bonus") or 0)),
             "daily_grok_image_date": self._clean(raw.get("daily_grok_image_date")) or None,
             "daily_grok_image_count": max(0, int(raw.get("daily_grok_image_count") or 0)),
+            "daily_grok_image_bonus": max(0, int(raw.get("daily_grok_image_bonus") or 0)),
             "login_count": max(0, int(raw.get("login_count") or 0)),
             "oauth_provider": oauth_provider,
             "oauth_subject": self._clean(raw.get("oauth_subject")) or None,
@@ -254,6 +255,10 @@ class AuthService:
                 max(0, int(item.get("daily_grok_image_count") or 0))
                 if str(item.get("daily_grok_image_date") or "") == _today_iso() else 0
             ),
+            "daily_grok_image_bonus": (
+                max(0, int(item.get("daily_grok_image_bonus") or 0))
+                if str(item.get("daily_grok_image_date") or "") == _today_iso() else 0
+            ),
             "login_count": int(item.get("login_count") or 0),
             "registration_source": source,
             "registration_source_label": source_label,
@@ -305,6 +310,7 @@ class AuthService:
                 raise ValueError("用户不存在或已被删除")
             item = self._items[index]
             used = max(0, int(item.get("daily_grok_image_count") or 0)) if self._clean(item.get("daily_grok_image_date")) == _today_iso() else 0
+            bonus = max(0, int(item.get("daily_grok_image_bonus") or 0)) if self._clean(item.get("daily_grok_image_date")) == _today_iso() else 0
             reserved = sum(value for uid, value in self._grok_quota_reservations.values() if uid == user_id)
             configured_limit = max(2, min(10, int(limit or 10)))
             active_users = sum(
@@ -318,7 +324,7 @@ class AuthService:
             # Treat the configured maximum as a 40-user daily pool. More active
             # Linux.do users therefore reduce each user's dynamic allowance.
             effective = max(2, min(10, (configured_limit * 40) // max(1, active_users)))
-            if used + reserved + requested > effective:
+            if used + reserved + requested > effective + bonus:
                 raise ImageQuotaExceededError(f"今日 Grok 生图额度已用尽（{effective} 张）")
             reservation_id = uuid.uuid4().hex
             self._grok_quota_reservations[reservation_id] = (user_id, requested)
@@ -344,8 +350,10 @@ class AuthService:
             item = dict(self._items[index])
             today = _today_iso()
             current = max(0, int(item.get("daily_grok_image_count") or 0)) if self._clean(item.get("daily_grok_image_date")) == today else 0
+            current_bonus = max(0, int(item.get("daily_grok_image_bonus") or 0)) if self._clean(item.get("daily_grok_image_date")) == today else 0
             item["daily_grok_image_date"] = today
             item["daily_grok_image_count"] = current + increment
+            item["daily_grok_image_bonus"] = current_bonus
             item["grok_usage_count"] = max(0, int(item.get("grok_usage_count") or 0)) + increment
             result = self.storage.mutate_auth_keys(StorageMutation(upserts=(item,), expected_revision=self._revision))
             self._set_cached_item_locked(item, result.revision)
@@ -946,6 +954,45 @@ class AuthService:
                     self._set_cached_item_locked(next_item, result.revision)
                 return [self._public_item(item) for item in updates]
         raise RuntimeError("批量调整用户额度失败")
+
+    def add_daily_grok_image_bonus(self, user_ids: list[str], count: int) -> list[dict[str, object]]:
+        normalized_ids = list(dict.fromkeys(self._clean(value) for value in user_ids if self._clean(value)))
+        increment = int(count or 0)
+        if not normalized_ids:
+            raise ValueError("请至少选择一个用户")
+        if increment < 1 or increment > 10000:
+            raise ValueError("增加次数必须在 1 到 10000 之间")
+        with self._lock:
+            for attempt in range(_CAS_ATTEMPTS):
+                self._reload_locked()
+                today = _today_iso()
+                selected = set(normalized_ids)
+                items = [item for item in self._items if item.get("role") == "user" and self._clean(item.get("id")) in selected]
+                if len(items) != len(selected):
+                    raise ValueError("部分用户不存在或已被删除，请刷新后重试")
+                updates = []
+                for item in items:
+                    next_item = dict(item)
+                    current_bonus = (
+                        max(0, int(item.get("daily_grok_image_bonus") or 0))
+                        if self._clean(item.get("daily_grok_image_date")) == today
+                        else 0
+                    )
+                    next_item["daily_grok_image_date"] = today
+                    next_item["daily_grok_image_bonus"] = current_bonus + increment
+                    updates.append(next_item)
+                try:
+                    result = self.storage.mutate_auth_keys(
+                        StorageMutation(upserts=tuple(updates), expected_revision=self._revision)
+                    )
+                except StorageRevisionConflictError:
+                    if attempt + 1 >= _CAS_ATTEMPTS:
+                        raise
+                    continue
+                for next_item in updates:
+                    self._set_cached_item_locked(next_item, result.revision)
+                return [self._public_item(item) for item in updates]
+        raise RuntimeError("批量调整 Grok 额度失败")
 
 
 auth_service = AuthService(config.get_storage_backend())

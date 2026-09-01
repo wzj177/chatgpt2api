@@ -155,13 +155,13 @@ export function useSettingsUserKeysRuntime(options: SettingsUserKeysRuntimeOptio
     }
   }
 
-  async function adjustDailyImages(userIds: string[], count: number) {
+  async function adjustDailyImages(userIds: string[], count: number, provider: 'gpt' | 'grok' = 'gpt') {
     if (!userIds.length) return
     userKeyBusy.value = 'bulk-daily-image'
     try {
-      const response = await userKeysApi.adjustDailyImages(userIds, count)
+      const response = await userKeysApi.adjustDailyImages(userIds, count, provider)
       response.items.forEach(upsertUserKey)
-      toast.success(`已为 ${response.items.length} 位用户增加今日 ${response.count} 次额度`)
+      toast.success(`已为 ${response.items.length} 位用户增加今日 ${response.count} 次${provider === 'grok' ? 'Grok ' : ''}额度`)
     } catch (error) {
       toast.error(errorMessage(error, '调整今日生图额度失败'))
     } finally {

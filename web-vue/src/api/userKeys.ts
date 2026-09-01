@@ -16,6 +16,7 @@ export interface UserKey {
   daily_image_remaining: number
   daily_image_base_remaining: number
   daily_grok_image_count: number
+  daily_grok_image_bonus: number
   login_count: number
   registration_source: string
   registration_source_label: string
@@ -69,9 +70,9 @@ export const userKeysApi = {
   delete: (keyId: string) =>
     apiClient.delete<never, UserKeyDeleteResponse>(`/api/auth/users/${keyId}`),
 
-  adjustDailyImages: (userIds: string[], count: number) =>
-    apiClient.post<{ user_ids: string[]; count: number }, UserDailyImageAdjustmentResponse>(
+  adjustDailyImages: (userIds: string[], count: number, provider: 'gpt' | 'grok' = 'gpt') =>
+    apiClient.post<{ user_ids: string[]; count: number; provider: 'gpt' | 'grok' }, UserDailyImageAdjustmentResponse>(
       '/api/auth/users/daily-image-adjustment',
-      { user_ids: userIds, count },
+      { user_ids: userIds, count, provider },
     ),
 }

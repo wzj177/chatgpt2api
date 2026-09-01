@@ -1181,7 +1181,8 @@ def create_router() -> APIRouter:
     ):
         require_admin(authorization)
         try:
-            items = await run_in_threadpool(auth_service.add_daily_image_bonus, body.user_ids, body.count)
+            adjuster = auth_service.add_daily_grok_image_bonus if body.provider == "grok" else auth_service.add_daily_image_bonus
+            items = await run_in_threadpool(adjuster, body.user_ids, body.count)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail={"error": str(exc)}) from exc
         daily_limit = max(0, int(config.user_daily_image_limit or 0))
