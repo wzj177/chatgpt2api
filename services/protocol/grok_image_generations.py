@@ -38,22 +38,46 @@ def _resolve_media_url(url: str, base_url: str) -> str:
     return urlunsplit((upstream.scheme, upstream.netloc, parsed.path, parsed.query, parsed.fragment))
 
 
-def handle(body: dict[str, Any]) -> dict[str, Any]:
+def _build_edit_request(body: dict[str, Any], images: list[tuple[bytes, str, str]]) -> dict[str, Any]:
+    if not images:
+        raise ValueError("Grok 图生图至少需要一张参考图")
+    if body.get("mask"):
+        raise ValueError("Grok 图生图暂不支持 mask 局部编辑")
+    references = [
+        {
+            "url": f"data:{mime_type};base64,{base64.b64encode(data).decode('ascii')}"
+        }
+        for data, _filename, mime_type in images
+    ]
+    request: dict[str, Any] = {
+        "model": str(body.get("model") or "grok-imagine-image-2.0").strip(),
+        "prompt": str(body.get("prompt") or "").strip(),
+        "n": 1,
+        "quality": str(body.get("quality") or "medium").strip().lower(),
+        "response_format": "b64_json",
+        "stream": False,
+    }
+    request["image"] = references[0] if len(references) == 1 else references
+    size = str(body.get("size") or "").strip().lower()
+    size_match = re.fullmatch(r"grok:(1k|2k):(1:1|16:9|9:16|4:3|3:4|3:2|2:3)", size)
+    if size_match:
+        request["resolution"] = size_match.group(1)
+        request["aspect_ratio"] = size_match.group(2)
+    return request
+
+
+def _request_images(body: dict[str, Any], *, endpoint: str, request_body: dict[str, Any]) -> dict[str, Any]:
     settings = config.grok_image
     if not is_grok_configured():
         raise ValueError("Grok 图片生成尚未完成系统配置，请先设置 API Key 和 Base URL")
     base_url = str(settings["base_url"]).rstrip("/")
-    model = str(body.get("model") or "grok-imagine-image-2.0").strip()
+    model = str(request_body.get("model") or "grok-imagine-image-2.0").strip()
     if not is_grok_image_model(model):
         raise ValueError("不支持的 Grok 图片模型")
-    prompt = str(body.get("prompt") or "").strip()
+    prompt = str(request_body.get("prompt") or "").strip()
     if not prompt:
         raise ValueError("prompt is required")
-    size = str(body.get("size") or "").strip().lower()
-    size_match = re.fullmatch(r"grok:(1k|2k):(1:1|16:9|9:16|4:3|3:4|3:2|2:3)", size)
-    resolution = size_match.group(1) if size_match else "1k"
-    ratio = size_match.group(2) if size_match else "1:1"
-    quality = str(body.get("quality") or "medium").strip().lower()
+    quality = str(request_body.get("quality") or "medium").strip().lower()
     if quality not in {"low", "medium"}:
         quality = "medium"
     response_format = str(body.get("response_format") or "url").strip().lower()
@@ -61,24 +85,14 @@ def handle(body: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("Grok response_format 只支持 url 或 b64_json")
     if bool(body.get("stream")):
         raise ValueError("Grok 图片任务暂不支持 stream=true，请使用 stream=false")
-    target_url = f"{base_url}/images/generations"
+    request_body["quality"] = quality
+    target_url = f"{base_url}/{endpoint}"
     logger.info({"event": "grok_image_upstream_request", "target_url": target_url})
     try:
         response = requests.post(
             target_url,
             headers={"Authorization": f"Bearer {settings['api_key']}", "Content-Type": "application/json"},
-            json={
-                "model": model,
-                "prompt": prompt,
-                "n": 1,
-                "aspect_ratio": ratio,
-                "resolution": resolution,
-                "quality": quality,
-                # Fetch bytes directly so Grok2API's container-local media URL
-                # never becomes a cross-container dependency.
-                "response_format": "b64_json",
-                "stream": False,
-            },
+            json=request_body,
             timeout=120,
         )
     except Exception as exc:
@@ -128,4 +142,33 @@ def handle(body: dict[str, Any]) -> dict[str, Any]:
         requested_size=body.get("size"),
         owner_id=str(body.get("_owner_id") or ""),
         model=model,
+    )
+
+
+def handle(body: dict[str, Any]) -> dict[str, Any]:
+    size = str(body.get("size") or "").strip().lower()
+    size_match = re.fullmatch(r"grok:(1k|2k):(1:1|16:9|9:16|4:3|3:4|3:2|2:3)", size)
+    request_body = {
+        "model": str(body.get("model") or "grok-imagine-image-2.0").strip(),
+        "prompt": str(body.get("prompt") or "").strip(),
+        "n": 1,
+        "aspect_ratio": size_match.group(2) if size_match else "1:1",
+        "resolution": size_match.group(1) if size_match else "1k",
+        "quality": str(body.get("quality") or "medium").strip().lower(),
+        # Fetch bytes directly so Grok2API's container-local media URL
+        # never becomes a cross-container dependency.
+        "response_format": "b64_json",
+        "stream": False,
+    }
+    return _request_images(body, endpoint="images/generations", request_body=request_body)
+
+
+def handle_edit(body: dict[str, Any]) -> dict[str, Any]:
+    images = body.get("images") or []
+    if not isinstance(images, list):
+        raise ValueError("Grok 图生图参考图格式无效")
+    return _request_images(
+        body,
+        endpoint="images/edits",
+        request_body=_build_edit_request(body, images),
     )

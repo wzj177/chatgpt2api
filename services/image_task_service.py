@@ -32,7 +32,11 @@ from services.image_task_view import image_task_page, image_task_row
 from services.json_file import read_json_file, write_json_file
 from services.log_service import LOG_TYPE_CALL, collect_image_attempts, log_service
 from services.protocol import openai_v1_image_edit, openai_v1_image_generations
-from services.protocol.grok_image_generations import handle as grok_image_generation, is_grok_image_model
+from services.protocol.grok_image_generations import (
+    handle as grok_image_generation,
+    handle_edit as grok_image_edit,
+    is_grok_image_model,
+)
 from services.realtime_monitor_service import realtime_monitor_service
 from services.storage.file_lock import interprocess_lock
 from utils.diagnostics import exception_diagnostic_fields
@@ -828,9 +832,10 @@ class ImageTaskService:
             model=model,
         )
         try:
-            handler = self.edit_handler if mode == "edit" else (
-                grok_image_generation if is_grok_image_model(model) else self.generation_handler
-            )
+            if is_grok_image_model(model):
+                handler = grok_image_edit if mode == "edit" else grok_image_generation
+            else:
+                handler = self.edit_handler if mode == "edit" else self.generation_handler
             result = handler(payload_with_progress)
             perf_timings["handler_exec_ms"] = int((time.perf_counter() - handler_started) * 1000)
             if not isinstance(result, dict):

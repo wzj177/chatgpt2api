@@ -167,6 +167,8 @@ def create_router() -> APIRouter:
         payload, image_sources, mask_sources = await parse_image_edit_request(request)
         prompt = str(payload["prompt"])
         model = str(payload["model"])
+        if grok_image_generations.is_grok_image_model(model) and int(payload.get("n") or 1) != 1:
+            raise HTTPException(status_code=400, detail={"error": "Grok 图片目前只支持生成 1 张"})
         call = LoggedCall(identity, "/v1/images/edits", model, "图生图", request_text=prompt)
         attach_trace_headers(call, request)
         call.attach_trace_metadata(payload)
@@ -177,7 +179,8 @@ def create_router() -> APIRouter:
         payload["base_url"] = resolve_image_base_url(request)
         payload["_owner_id"] = str(identity.get("id") or "")
         reserve_image_quota(call, int(payload.get("n") or 1))
-        return await call.run(openai_v1_image_edit.handle, payload)
+        handler = grok_image_generations.handle_edit if grok_image_generations.is_grok_image_model(model) else openai_v1_image_edit.handle
+        return await call.run(handler, payload)
 
     @router.post("/v1/chat/completions")
     async def create_chat_completion(body: ChatCompletionRequest, request: Request, authorization: str | None = Header(default=None)):
