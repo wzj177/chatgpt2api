@@ -295,7 +295,8 @@ class AuthService:
                 and bool(item.get("enabled", True))
             ]
             users.sort(key=lambda item: max(0, int(item.get("usage_count") or 0)), reverse=True)
-            limit = max(0, int(config.grok_image.get("linuxdo_user_limit") or 40))
+            raw_limit = config.grok_image.get("linuxdo_user_limit")
+            limit = max(0, int(raw_limit if raw_limit not in (None, "") else 40))
             allowed = users if limit == 0 else users[:limit]
             return any(self._clean(item.get("id")) == self._clean(user_id) for item in allowed)
 

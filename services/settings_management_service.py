@@ -692,7 +692,17 @@ class SettingsManagementService:
                 base_url=_url(grok_image.get("base_url"), str(DEFAULT_GROK_IMAGE["base_url"])) or str(DEFAULT_GROK_IMAGE["base_url"]),
                 api_key="",
                 has_api_key=bool(_text(stored_grok_image.get("api_key"))),
-                linuxdo_user_limit=max(0, min(10000, int(grok_image.get("linuxdo_user_limit") or 40))),
+                linuxdo_user_limit=max(
+                    0,
+                    min(
+                        10000,
+                        int(
+                            grok_image.get("linuxdo_user_limit")
+                            if grok_image.get("linuxdo_user_limit") not in (None, "")
+                            else 40
+                        ),
+                    ),
+                ),
                 daily_image_limit=max(2, min(10, int(grok_image.get("daily_image_limit") or 10))),
             ),
             third_party_apps=ThirdPartyAppsSettings(

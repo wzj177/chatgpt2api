@@ -403,7 +403,11 @@ def _normalize_grok_image_settings(value: object) -> dict[str, object]:
     source = value if isinstance(value, dict) else {}
     normalized = copy.deepcopy(source)
     try:
-        user_limit = max(0, min(10000, int(source.get("linuxdo_user_limit") or 40)))
+        raw_user_limit = source.get("linuxdo_user_limit")
+        user_limit = max(
+            0,
+            min(10000, int(raw_user_limit if raw_user_limit not in (None, "") else 40)),
+        )
     except (TypeError, ValueError):
         user_limit = 40
     try:
