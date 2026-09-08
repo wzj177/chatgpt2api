@@ -65,6 +65,16 @@ curl -fsSL https://raw.githubusercontent.com/yukkcat/chatgpt2api/main/deploy/ins
 
 选择本地 PostgreSQL 时，脚本会自动生成并保存数据库密码，下载 `docker-compose.postgres.yml`，再与主 Compose 一起启动。重复运行安装脚本会复用已有密码。`CHATGPT2API_THREAD_TOKENS` 默认是 `120`，表示后端同步工作线程的并发容量，只要求正整数且不设置人为最高值；账号、代理和上游服务仍分别执行自己的并发限制。
 
+生产容器限制 Uvicorn 的并发连接数为 96、监听队列为 128，并将空闲 Keep-Alive 连接在 5 秒后关闭。超过处理能力的请求会快速收到 503，不会无限等待到 Nginx 504。容器提供 `/healthz`，Docker 每 30 秒检查一次；如果事件循环持续卡住超过 60 秒，应用会记录 `event_loop_watchdog_stalled` 后退出，现有 `restart: unless-stopped` 会自动拉起容器。卡死阈值可通过 `CHATGPT2API_EVENT_LOOP_WATCHDOG_STALL_SECONDS` 调整。
+
+升级后检查：
+
+```bash
+docker compose up -d --build
+curl -i --max-time 10 http://127.0.0.1:3000/healthz
+docker inspect --format '{{.State.Health.Status}}' chatgpt2api
+```
+
 ## 本地开发
 
 后端：

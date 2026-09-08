@@ -71,4 +71,5 @@ WORKDIR /app
 EXPOSE 80
 
 ENTRYPOINT ["chatgpt2api-entrypoint"]
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80", "--access-log"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:80/healthz', timeout=3)"
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80", "--access-log", "--limit-concurrency", "96", "--backlog", "128", "--timeout-keep-alive", "5"]

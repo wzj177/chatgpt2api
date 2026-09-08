@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 from threading import Event
 
 from anyio.to_thread import current_default_thread_limiter
 from fastapi import FastAPI, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from api import accounts, ai, image_tasks, prompts, system
 from api.errors import install_exception_handlers
@@ -16,6 +17,7 @@ from services.account_service import account_service
 from services.backup_service import backup_service
 from services.config import config
 from services.dashboard_metrics_service import dashboard_metrics_service
+from services.event_loop_watchdog import event_loop_watchdog
 from services.genbox_push_service import (
     shutdown_genbox_push_service,
     start_genbox_push_service,
@@ -51,6 +53,8 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         _configure_threadpool()
+        event_loop_watchdog.start()
+        watchdog_task = asyncio.create_task(event_loop_watchdog.heartbeat())
         start_genbox_push_service()
         image_task_service.start()
         try:
@@ -98,6 +102,10 @@ def create_app() -> FastAPI:
             yield
         finally:
             stop_event.set()
+            event_loop_watchdog.stop()
+            watchdog_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await watchdog_task
             thread.join(timeout=1)
             dashboard_metrics_thread.join(timeout=1)
             await run_in_threadpool(cleanup_thread.join, RETENTION_SHUTDOWN_TIMEOUT_SECS)
@@ -126,6 +134,10 @@ def create_app() -> FastAPI:
     app.include_router(image_tasks.create_router())
     app.include_router(prompts.create_router())
     app.include_router(system.create_router(app_version))
+
+    @app.get("/healthz", include_in_schema=False)
+    async def health_check():
+        return JSONResponse({"status": "ok"})
 
     @app.api_route("/{full_path:path}", methods=["GET", "HEAD"], include_in_schema=False)
     async def serve_web(full_path: str):
