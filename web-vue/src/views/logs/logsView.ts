@@ -66,6 +66,7 @@ export type LogCellDisplay = {
 
 export type LogRequestDisplay = LogCellDisplay & {
   kind: string
+  parameters?: string
 }
 
 export const typeOptions = [
@@ -212,6 +213,8 @@ export function systemLogRowSignature(item: SystemLogRow, input: SystemLogRowSig
     boundedSignatureText(request.primary, 96),
     boundedSignatureText(request.kind, 64),
     boundedSignatureText(request.secondary, 128),
+    boundedSignatureText(request.parameters, 160),
+    boundedSignatureText(item.presentation.result.resolution, 160),
     boundedSignatureText(execution.primary, 96),
     boundedSignatureText(execution.secondary, 96),
     boundedSignatureText(durationDisplay.total, 64),
