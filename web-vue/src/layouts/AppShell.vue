@@ -999,18 +999,18 @@ type HeaderServiceItem = {
 const headerServiceItems: HeaderServiceItem[] = [
   {
     key: 'service-qq',
-    label: 'QQ 交流群：746749887',
+    label: 'Vibe Coding 兴趣交流群：746749887',
     detail: '群号 746749887',
     href: 'https://qm.qq.com/q/yegwCqJisS',
     icon: 'lucide:messages-square',
   },
-  {
-    key: 'service-seeddance-api',
-    label: 'SeedDance2.0&Gpt Image2 中转 API',
-    detail: '暂未开放',
-    href: '',
-    icon: 'lucide:badge-dollar-sign',
-  },
+  // {
+  //   key: 'service-seeddance-api',
+  //   label: 'SeedDance2.0&Gpt Image2 中转 API',
+  //   detail: '暂未开放',
+  //   href: '',
+  //   icon: 'lucide:badge-dollar-sign',
+  // },
 ]
 
 const mobileHeaderMenuItems = computed<ActionMenuItem[]>(() => {
