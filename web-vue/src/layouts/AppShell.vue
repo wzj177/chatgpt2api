@@ -262,7 +262,7 @@
                     size="sm"
                     variant="outline"
                     aria-label="交流与服务"
-                    @click="isServiceDialogOpen = true"
+                    @click="handleServiceAccessRequest"
                   >
                     服务
                   </Button>
@@ -1065,6 +1065,18 @@ function handleServiceItemClick(item: HeaderServiceItem, event: MouseEvent) {
   toast.info('暂未开放')
 }
 
+async function handleServiceAccessRequest() {
+  if (authStore.subject?.registration_source === 'linuxdo') return
+  const isLinuxDoUser = await confirmDialog.ask({
+    title: '交流与服务',
+    message: '是否是 l 站用户？',
+    confirmText: '是',
+    cancelText: '否',
+  })
+  if (isLinuxDoUser) return
+  isServiceDialogOpen.value = true
+}
+
 function setMobileSidebarScrollLock(locked: boolean) {
   if (typeof document === 'undefined') return
   document.documentElement.classList.toggle('app-mobile-sidebar-open', locked)
@@ -1199,7 +1211,7 @@ async function openInfiniteCanvas() {
 
 function handleHeaderMenuSelect(key: string) {
   if (key === 'services') {
-    isServiceDialogOpen.value = true
+    void handleServiceAccessRequest()
     return
   }
   if (key === 'canvas') {

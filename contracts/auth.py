@@ -19,6 +19,7 @@ class AuthSubject(_StrictModel):
     role: AuthRole
     email: str | None = None
     created_at: str | None = None
+    registration_source: str = "email"
 
 
 class AuthCapabilities(_StrictModel):

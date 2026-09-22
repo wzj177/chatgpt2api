@@ -58,11 +58,6 @@ def _build_edit_request(body: dict[str, Any], images: list[tuple[bytes, str, str
         "stream": False,
     }
     request["image"] = references[0] if len(references) == 1 else references
-    size = str(body.get("size") or "").strip().lower()
-    size_match = re.fullmatch(r"grok:(1k|2k):(1:1|16:9|9:16|4:3|3:4|3:2|2:3)", size)
-    if size_match:
-        request["resolution"] = size_match.group(1)
-        request["aspect_ratio"] = size_match.group(2)
     return request
 
 

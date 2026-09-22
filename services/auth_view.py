@@ -27,6 +27,9 @@ def build_auth_view(app_version: str, identity: Mapping[str, object] | None = No
     subject_name = _clean(identity.get("name")) or subject_id
     subject_email = _clean(identity.get("email")) or None
     subject_created_at = _clean(identity.get("created_at")) or None
+    registration_source = _clean(identity.get("registration_source")).lower()
+    if not registration_source:
+        registration_source = "email" if subject_email else "admin"
 
     return AuthView(
         authenticated=True,
@@ -37,11 +40,16 @@ def build_auth_view(app_version: str, identity: Mapping[str, object] | None = No
             role=role,
             email=subject_email,
             created_at=subject_created_at,
+            registration_source=registration_source,
         ),
         capabilities=AuthCapabilities(
             admin_console=is_admin,
             studio=True,
-            service_access=role == "user" and config.service_button_enabled,
+            service_access=(
+                role == "user"
+                and registration_source != "linuxdo"
+                and config.service_button_enabled
+            ),
         ),
         home_route="/" if is_admin else "/studio",
     )
